@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  # OpenClaw Gateway
+  openclaw:
+    image: ghcr.io/anthropics/anthropic-quickstarts:computer-use-demo-latest
+    # NOTE: Replace with actual OpenClaw image when available
+    # For now, we'll use a placeholder - you may need to build/find the real image
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - WORKSPACE_PATH=/workspace
+    depends_on:
+      - mock-tools
+    networks:
+      - sandbox-net
+
+  # Mock Tool Server (all tools in one for simplicity)
+  mock-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-tools
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./fixtures:/fixtures:ro
+      - ./logs:/logs
+    environment:
+      - FIXTURES_PATH=/fixtures
+      - LOG_PATH=/logs
+    networks:
+      - sandbox-net
+
+networks:
+  sandbox-net:
+    driver: bridge

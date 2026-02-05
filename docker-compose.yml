@@ -3,8 +3,9 @@
 # Runs OpenClaw gateway with mock tools for AGENTS.md evaluation
 #
 # Usage:
-#   export ANTHROPIC_API_KEY="sk-ant-..."
-#   docker-compose up --build
+#   1. cp .env.example .env
+#   2. Edit .env with your API key
+#   3. docker-compose up --build
 #
 # Dashboard: http://localhost:18789/?token=sandbox-token-12345
 
@@ -26,7 +27,7 @@ services:
       - ./logs:/logs
     environment:
       - FIXTURES_PATH=/fixtures
-      - SCENARIO=inbox_triage
+      - SCENARIO=${SCENARIO:-inbox_triage}
       - LOG_PATH=/logs
     networks:
       - sandbox-net
@@ -49,11 +50,12 @@ services:
     volumes:
       # Workspace with AGENTS.md
       - ./workspace:/workspace
+    env_file:
+      - .env
     environment:
-      # Model provider API key (required)
+      # These can override .env values
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      # Gateway token for dashboard access
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-sandbox-token-12345}
     extra_hosts:
       # Allow container to reach mock-tools via host.docker.internal

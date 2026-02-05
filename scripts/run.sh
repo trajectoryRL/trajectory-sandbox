@@ -5,7 +5,8 @@
 #   ./scripts/run.sh [baseline|optimized]
 #
 # Prerequisites:
-#   - export ANTHROPIC_API_KEY="sk-ant-..."
+#   1. cp .env.example .env
+#   2. Edit .env with your API key
 
 set -e
 
@@ -14,12 +15,26 @@ SANDBOX_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$SANDBOX_DIR"
 
-# Check for API key
+# Check for .env file
+if [ ! -f ".env" ]; then
+    echo "ERROR: .env file not found"
+    echo ""
+    echo "Create it from the example:"
+    echo "  cp .env.example .env"
+    echo ""
+    echo "Then edit .env and add your API key"
+    exit 1
+fi
+
+# Source .env to check for API key
+set -a
+source .env
+set +a
+
 if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
-    echo "ERROR: Set ANTHROPIC_API_KEY or OPENAI_API_KEY"
+    echo "ERROR: No API key set in .env"
     echo ""
-    echo "  export ANTHROPIC_API_KEY='sk-ant-...'"
-    echo ""
+    echo "Edit .env and set ANTHROPIC_API_KEY or OPENAI_API_KEY"
     exit 1
 fi
 
@@ -40,6 +55,9 @@ fi
 # Copy USER.md
 cp fixtures/inbox_triage/USER.md workspace/USER.md
 
+# Get token from .env or use default
+TOKEN="${OPENCLAW_GATEWAY_TOKEN:-sandbox-token-12345}"
+
 echo ""
 echo "=============================================="
 echo "Starting Trajectory Sandbox"
@@ -47,7 +65,7 @@ echo "=============================================="
 echo ""
 echo "AGENTS.md variant: $VARIANT"
 echo ""
-echo "Dashboard: http://localhost:18789/?token=sandbox-token-12345"
+echo "Dashboard: http://localhost:18789/?token=${TOKEN}"
 echo "Mock tools: http://localhost:3001"
 echo ""
 echo "Press Ctrl+C to stop"

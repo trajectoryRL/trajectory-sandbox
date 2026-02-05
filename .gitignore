@@ -218,3 +218,7 @@ logs/*
 # Config with secrets
 config/*.json
 !config/*.example.json
+
+# Environment variables with secrets
+.env
+!.env.example

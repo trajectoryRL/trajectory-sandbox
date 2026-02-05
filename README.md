@@ -2,13 +2,22 @@
 
 Sandbox for evaluating AGENTS.md policies with real OpenClaw.
 
-## Directory Structure
+## Prerequisites
+
+Clone both repos as sibling directories:
+
+```bash
+git clone https://github.com/trajectoryRL/openclaw.git
+git clone https://github.com/trajectoryRL/trajectory-sandbox.git
+```
+
+Expected layout:
 
 ```
-/data2/trajectory_rl/
+your-workspace/
 ├── openclaw/                    # Fork: github.com/trajectoryRL/openclaw
 │   ├── extensions/
-│   │   └── trajectory-sandbox-tools/   # Our mock tools plugin
+│   │   └── trajectory-sandbox-tools/   # Mock tools plugin
 │   ├── sandbox-config/
 │   │   └── openclaw.json               # Pre-configured settings
 │   └── Dockerfile.trajectory-sandbox   # Docker image
@@ -25,12 +34,15 @@ Sandbox for evaluating AGENTS.md policies with real OpenClaw.
 ## Quick Start
 
 ```bash
-cd /data2/trajectory_rl/trajectory-sandbox
+cd trajectory-sandbox
 
-# 1. Set API key
-export ANTHROPIC_API_KEY="sk-ant-..."
+# 1. Create .env from example
+cp .env.example .env
 
-# 2. Run with baseline AGENTS.md
+# 2. Edit .env and add your API key
+#    ANTHROPIC_API_KEY=sk-ant-...
+
+# 3. Run with baseline AGENTS.md
 ./scripts/run.sh baseline
 
 # Or with optimized AGENTS.md
@@ -38,6 +50,17 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 Dashboard: `http://localhost:18789/?token=sandbox-token-12345`
+
+## Environment Variables (.env)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | Yes* | - | Anthropic API key |
+| `OPENAI_API_KEY` | Yes* | - | OpenAI API key |
+| `OPENCLAW_GATEWAY_TOKEN` | No | `sandbox-token-12345` | Gateway auth token |
+| `SCENARIO` | No | `inbox_triage` | Scenario fixtures to load |
+
+*At least one API key required
 
 ## What's Pre-configured
 
@@ -67,10 +90,10 @@ Check tool calls:
 cat logs/inbox_triage_calls.jsonl
 ```
 
-## Push Changes to Fork
+## Contributing
 
 ```bash
-cd /data2/trajectory_rl/openclaw
+cd ../openclaw
 git checkout -b trajectory-sandbox
 git add .
 git commit -m "Add trajectory-sandbox-tools plugin"

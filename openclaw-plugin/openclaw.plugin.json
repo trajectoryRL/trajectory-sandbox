@@ -1,0 +1,32 @@
+{
+  "id": "trajectory-sandbox-tools",
+  "name": "Trajectory Sandbox Tools",
+  "version": "0.1.0",
+  "description": "Mock tools for trajectory sandbox evaluation (inbox, calendar, memory)",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "mockServerUrl": {
+        "type": "string",
+        "default": "http://localhost:3001",
+        "description": "URL of the mock tools server"
+      },
+      "scenario": {
+        "type": "string",
+        "default": "inbox_triage",
+        "description": "Current scenario name for fixtures"
+      }
+    }
+  },
+  "uiHints": {
+    "mockServerUrl": {
+      "label": "Mock Server URL",
+      "placeholder": "http://localhost:3001"
+    },
+    "scenario": {
+      "label": "Scenario",
+      "placeholder": "inbox_triage"
+    }
+  }
+}

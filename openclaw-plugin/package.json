@@ -1,0 +1,9 @@
+{
+  "name": "trajectory-sandbox-tools",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for trajectory sandbox mock tools",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {}
+}

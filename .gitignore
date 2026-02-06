@@ -228,3 +228,6 @@ openclaw/
 
 # Generated scenario configs (created by setup_scenario.py)
 generated/
+
+# Batch run results (created by run_batch.py)
+results/

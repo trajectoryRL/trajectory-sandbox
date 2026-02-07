@@ -45,6 +45,10 @@ from pathlib import Path
 import httpx
 import yaml
 
+# Add project root to path so we can import the scoring module
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from trajectory_sandbox.scoring import score_episode, format_score_summary, format_score_markdown
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -431,12 +435,24 @@ def run_single(scenario: dict, variant: str) -> dict:
         "raw_response": raw_response,
     }
 
+    # Score the episode
+    scoring_config = scenario.get("scoring")
+    if scoring_config:
+        score = score_episode(result, scoring_config)
+        result["score"] = score
+    else:
+        result["score"] = {"score": None, "reason": "no scoring rubric"}
+
     # Print quick status
     status_icon = "✅" if result["status"] == "ok" and not has_errors else "⚠️" if has_errors else "❌"
+    score_str = f", score={result['score']['score']:.0%}" if result["score"].get("score") is not None else ""
     print(f"\n  {status_icon} {name}/{variant}: {len(tool_calls)} tool calls, "
           f"{summary.get('failed', 0)} failures, "
           f"{len(assistant_message)} chars, "
-          f"{elapsed:.1f}s")
+          f"{elapsed:.1f}s{score_str}")
+
+    if result["score"].get("score") is not None:
+        print(format_score_summary(result["score"]))
 
     if failed_requests:
         for fr in failed_requests[:3]:
@@ -478,6 +494,13 @@ def save_results(results: list[dict], run_id: str):
             f.write(response_text)
             f.write("\n")
 
+        # Score card markdown
+        score_data = r.get("score", {})
+        if score_data.get("score") is not None:
+            score_md = format_score_markdown(score_data, name, variant)
+            with open(run_dir / f"{tag}_score.md", "w") as f:
+                f.write(score_md + "\n")
+
         all_summaries.append({
             "scenario": name,
             "variant": variant,
@@ -488,6 +511,8 @@ def save_results(results: list[dict], run_id: str):
             "elapsed_seconds": r.get("elapsed_seconds", 0),
             "has_error_hints": r.get("response_has_error_hints", False),
             "tool_calls_by_type": r.get("tool_calls_by_type", {}),
+            "score": score_data.get("score"),
+            "score_detail": score_data.get("by_category"),
         })
 
     # Summary markdown
@@ -498,11 +523,12 @@ def save_results(results: list[dict], run_id: str):
         f.write(f"**Episodes:** {len(results)}\n\n")
 
         f.write("## Results\n\n")
-        f.write("| Scenario | Variant | Status | Tool Calls | Failures | Response Len | Time (s) |\n")
-        f.write("|----------|---------|--------|------------|----------|-------------|----------|\n")
+        f.write("| Scenario | Variant | Status | Score | Tool Calls | Failures | Response Len | Time (s) |\n")
+        f.write("|----------|---------|--------|-------|------------|----------|-------------|----------|\n")
         for s in all_summaries:
             status = "✅" if s["status"] == "ok" and not s["has_error_hints"] else "⚠️"
-            f.write(f"| {s['scenario']} | {s['variant']} | {status} | "
+            score_str = f"{s['score']:.0%}" if s.get("score") is not None else "—"
+            f.write(f"| {s['scenario']} | {s['variant']} | {status} | {score_str} | "
                     f"{s['tool_calls']} | {s['failed_requests']} | "
                     f"{s['response_length']} | {s['elapsed_seconds']} |\n")
 
@@ -531,6 +557,25 @@ def save_results(results: list[dict], run_id: str):
 
                 ff_b, ff_o = baseline["failed_requests"], optimized["failed_requests"]
                 f.write(f"| Failed requests | {ff_b} | {ff_o} | {ff_o - ff_b:+d} |\n")
+
+                # Score comparison
+                sc_b = baseline.get("score")
+                sc_o = optimized.get("score")
+                if sc_b is not None and sc_o is not None:
+                    f.write(f"| **Score** | **{sc_b:.0%}** | **{sc_o:.0%}** | **{sc_o - sc_b:+.0%}** |\n")
+
+                    # Per-category score comparison
+                    f.write(f"\n**Score breakdown:**\n\n")
+                    f.write(f"| Category | Baseline | Optimized |\n")
+                    f.write(f"|----------|----------|----------|\n")
+                    cats_b = baseline.get("score_detail", {})
+                    cats_o = optimized.get("score_detail", {})
+                    for cat in ["safety", "correctness", "efficiency", "structure"]:
+                        cb = cats_b.get(cat, {})
+                        co = cats_o.get(cat, {})
+                        b_str = f"{cb.get('earned', 0)}/{cb.get('possible', 0)}" if cb else "—"
+                        o_str = f"{co.get('earned', 0)}/{co.get('possible', 0)}" if co else "—"
+                        f.write(f"| {cat} | {b_str} | {o_str} |\n")
 
                 f.write(f"\n**Baseline tools:** {json.dumps(baseline['tool_calls_by_type'])}\n")
                 f.write(f"**Optimized tools:** {json.dumps(optimized['tool_calls_by_type'])}\n\n")
@@ -635,6 +680,28 @@ Examples:
             for issue in r["issues"]:
                 print(f"      ! {issue}")
 
+        # Show scoring rubric summary
+        print(f"\n=== Scoring Rubrics ===\n")
+        seen_scenarios = set()
+        for s, v in plan:
+            if s["name"] in seen_scenarios:
+                continue
+            seen_scenarios.add(s["name"])
+            scoring = s.get("scoring", {})
+            checks = scoring.get("checks", [])
+            if checks:
+                total_points = sum(c.get("points", 1) for c in checks)
+                cats = {}
+                for c in checks:
+                    cat = c.get("category", "other")
+                    cats[cat] = cats.get(cat, 0) + c.get("points", 1)
+                cat_str = ", ".join(f"{cat}={pts}" for cat, pts in sorted(cats.items()))
+                print(f"  {s['name']}: {len(checks)} checks, {total_points} points ({cat_str})")
+                for c in checks:
+                    print(f"    [{c.get('category', '?'):>12}] {c['id']} ({c.get('points', 1)}pts) — {c.get('description', '')}")
+            else:
+                print(f"  {s['name']}: (no scoring rubric)")
+
         # Save dry run report
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         with open(RESULTS_DIR / "dry_run.json", "w") as f:
@@ -679,14 +746,17 @@ Examples:
     save_results(results, run_id)
 
     # Print final summary table
-    print(f"\n{'='*70}")
+    print(f"\n{'='*80}")
     print(f"  BATCH SUMMARY — {len(results)} episodes")
-    print(f"{'='*70}")
-    print(f"{'Scenario':<20} {'Variant':<10} {'Status':<6} {'Tools':<6} {'Fail':<5} {'Resp':<7} {'Time':<6}")
-    print(f"{'-'*20} {'-'*10} {'-'*6} {'-'*6} {'-'*5} {'-'*7} {'-'*6}")
+    print(f"{'='*80}")
+    print(f"{'Scenario':<20} {'Variant':<10} {'Status':<6} {'Score':<7} {'Tools':<6} {'Fail':<5} {'Resp':<7} {'Time':<6}")
+    print(f"{'-'*20} {'-'*10} {'-'*6} {'-'*7} {'-'*6} {'-'*5} {'-'*7} {'-'*6}")
     for r in results:
         status = "OK" if r.get("status") == "ok" and not r.get("response_has_error_hints") else "WARN" if r.get("response_has_error_hints") else "ERR"
+        score = r.get("score", {})
+        score_str = f"{score['score']:.0%}" if score.get("score") is not None else "—"
         print(f"{r.get('scenario','?'):<20} {r.get('variant','?'):<10} {status:<6} "
+              f"{score_str:<7} "
               f"{r.get('tool_calls_total', '?'):<6} {r.get('requests_failed', '?'):<5} "
               f"{r.get('response_length', '?'):<7} {r.get('elapsed_seconds', '?'):<6}")
 

@@ -71,6 +71,9 @@ BASE_CONFIG = {
         },
     },
     "plugins": {
+        # Disable memory-core plugin so its memory_search/memory_get
+        # don't conflict with the sandbox plugin's mock versions.
+        "slots": {"memory": "none"},
         "entries": {
             "trajectory-sandbox-tools": {
                 "enabled": True,
@@ -82,6 +85,12 @@ BASE_CONFIG = {
         },
     },
     "tools": {
+        # Disable built-in web_search/web_fetch so they don't conflict
+        # with the sandbox plugin's mock versions.
+        "web": {
+            "search": {"enabled": False},
+            "fetch": {"enabled": False},
+        },
         "deny": DENY_TOOLS,
         "allow": [],
     },

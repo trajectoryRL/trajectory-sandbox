@@ -41,6 +41,8 @@ OpenClaw agents are powerful — they read email, manage calendars, post to Slac
 
 Trajectory Evals gives you **pytest-like rigor for agent behavior**: define a scenario, run the agent, score the trajectory against a rubric. Change your AGENTS.md, re-run, see exactly what improved and what regressed.
 
+Beyond one-off testing, the deterministic scoring output is a **reward signal**. Use it to drive RL-style optimization of AGENTS.md instructions, fine-tune open-source models on high-scoring trajectories, or build automated prompt search pipelines. Same scenarios, same rubrics — the scores are directly comparable across runs, models, and prompt variants.
+
 ---
 
 ## Features
@@ -51,6 +53,7 @@ Trajectory Evals gives you **pytest-like rigor for agent behavior**: define a sc
 - **Safety checks** — detect confidential data leaks, unauthorized sends, missing approvals
 - **No LLM judge** — regex-based rubric, zero inference cost for scoring
 - **A/B testing** — each scenario ships with `baseline` and `optimized` AGENTS.md variants
+- **RL-ready reward signal** — normalized scores drive prompt optimization loops and model fine-tuning
 - **4-layer testing** — from in-process unit tests to full Docker integration
 - **Docker or standalone** — `docker compose` for full integration, or run mock tools standalone
 
@@ -498,6 +501,53 @@ Key differentiators:
 - **Only framework using real OpenClaw tool schemas** — agent learns the real interface, not a test double
 - **Regex scoring** — zero inference cost, instant feedback, no variance between runs
 - **AGENTS.md A/B testing** — change one line in your agent instructions, see exactly what improved
+- **RL-compatible reward signal** — normalized `[0, 1]` scores feed directly into optimization loops
+
+---
+
+## Beyond Testing: Optimization & Fine-Tuning
+
+Trajectory Evals isn't just a test harness — it's an **optimization environment**. The deterministic scoring output is a reward signal you can build on.
+
+### RL-style AGENTS.md optimization
+
+The scored rubric gives you a differentiable-enough signal to iterate on agent instructions programmatically:
+
+```
+┌─────────────┐     ┌───────────────┐     ┌─────────────┐     ┌──────────────┐
+│  Generate   │     │  Run episode  │     │   Score     │     │  Select &    │
+│  AGENTS.md  │────▶│  (sandbox)    │────▶│  trajectory │────▶│  mutate top  │
+│  variants   │     │               │     │  [0, 1]     │     │  performers  │
+└─────────────┘     └───────────────┘     └─────────────┘     └──────┬───────┘
+       ▲                                                             │
+       └─────────────────────────────────────────────────────────────┘
+```
+
+Each iteration produces a batch of scored trajectories. Keep the high-scorers, mutate, repeat. The sandbox ensures every variant is evaluated on identical inputs — no confounding from fixture randomness.
+
+### Fine-tuning open-source models
+
+Collect trajectories from strong runs (Claude Sonnet/Opus, GPT) and use them as supervised fine-tuning data for open-source models:
+
+1. Run `run_batch.py` across scenarios with a strong model
+2. Filter for trajectories scoring above your threshold
+3. Export the tool call sequences as training pairs
+4. Fine-tune Llama, Mistral, Qwen, etc. on the high-quality trajectories
+
+The fixture-backed sandbox means you can generate unlimited training episodes at the cost of one LLM call per episode — no external API rate limits, no flaky integrations.
+
+### Prompt search & ablation
+
+Use `run_batch.py` with `--variant` to systematically compare prompt strategies:
+
+```bash
+# Compare 3 AGENTS.md variants across all scenarios
+for v in baseline optimized aggressive; do
+  python scripts/run_batch.py --variant $v --tag "experiment-42"
+done
+
+# Results land in results/{timestamp}/ — diff the scores
+```
 
 ---
 

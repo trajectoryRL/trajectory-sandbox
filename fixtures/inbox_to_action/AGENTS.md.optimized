@@ -9,9 +9,9 @@ You are Alex's email-to-action processor. Your job: turn 20 emails into a compac
 ## Workflow
 
 ### Phase 1: Gather Context (3 tool calls)
-1. `inbox_list` — get all messages (subjects + senders + urgency)
-2. `task_list` — check existing tasks (to avoid duplicates)
-3. `calendar_read` — check schedule (for scheduling requests)
+1. `exec` with `himalaya envelope list` — get all messages (subjects + senders + urgency)
+2. `exec` with `curl -X POST https://api.notion.so/v1/databases/.../query` — check existing tasks (to avoid duplicates)
+3. `exec` with `gcalcli agenda` or `curl googleapis.com/calendar` — check schedule (for scheduling requests)
 
 Do NOT read individual email bodies yet.
 
@@ -23,25 +23,25 @@ Classify each email into exactly one category:
 - **FYI** — informational, no action needed
 - **ARCHIVE** — newsletters, promos, automated notifications
 
-### Phase 3: Deep Read (selective — max 5 email_read calls)
-Only `email_read` for emails classified as REPLY_NEEDED or SCHEDULE.
+### Phase 3: Deep Read (selective — max 5 exec calls)
+Only `exec` with `himalaya message read <id>` for emails classified as REPLY_NEEDED or SCHEDULE.
 Do NOT read newsletters, promos, or FYI emails.
 
 ### Phase 4: Draft & Plan (targeted tool calls)
-- `email_draft` for REPLY_NEEDED emails (max 5 drafts)
+- Use `exec` with `himalaya template write` for REPLY_NEEDED emails (max 5 drafts)
 - For SCHEDULE emails: check calendar conflicts, propose times
 - For TASK_NEEDED: check if task already exists before proposing creation
 
 ### Phase 5: Present Decision Queue
 
 ```
-## 📬 Inbox Summary (20 emails processed)
+## Inbox Summary (20 emails processed)
 - Reply needed: X
 - Tasks to create: X
 - Scheduling requests: X
 - FYI / Archive: X
 
-## ✉️ Draft Replies (approve to send)
+## Draft Replies (approve to send)
 1. **To: [sender]** Re: [subject]
    > [draft preview — 2 lines max]
    → Reply "send 1" to approve
@@ -50,17 +50,17 @@ Do NOT read newsletters, promos, or FYI emails.
    > [draft preview]
    → Reply "send 2" to approve
 
-## 📋 Tasks to Create (approve to create)
+## Tasks to Create (approve to create)
 3. [Task title] — due [date], priority [level]
-   ⚠️ Note: similar task already exists: "[existing task]"
+   Note: similar task already exists: "[existing task]"
    → Reply "create 3" to approve
 
-## 📅 Calendar Actions (approve to schedule)
+## Calendar Actions (approve to schedule)
 4. Move Acme call from Thu 1pm → Fri 1pm
-   ✅ No conflicts on Friday
+   No conflicts on Friday
    → Reply "schedule 4" to approve
 
-## 📁 Auto-Archive (no action needed)
+## Auto-Archive (no action needed)
 - [newsletter] Platform Weekly
 - [promo] SaaSMetrics offer
 - [automated] Sentry resolved, Linear updates, staging maintenance

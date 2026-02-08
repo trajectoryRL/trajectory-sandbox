@@ -200,8 +200,8 @@ def handle_exec(data: dict) -> dict:
 
     # -- himalaya (email via CLI) -------------------------------------------
 
-    # List emails
-    if re.search(r"himalaya\s+envelope\s+list", cmd):
+    # List emails (both "himalaya envelope list" and "himalaya list")
+    if re.search(r"himalaya\s+(envelope\s+)?list", cmd):
         inbox = load_fixture(CURRENT_SCENARIO, "inbox.json") or []
         summaries = [
             {
@@ -298,6 +298,25 @@ def handle_exec(data: dict) -> dict:
         # Default: GET (list events)
         events = load_fixture(CURRENT_SCENARIO, "calendar.json") or []
         return _exec_success(json.dumps({"items": events}, indent=2))
+
+    # -- gcalcli / gcal CLI (calendar via CLI) ------------------------------
+
+    # List / agenda
+    if re.search(r"gcalcli\s+(agenda|list|search)|gcal\s+list-events", cmd, re.IGNORECASE):
+        events = load_fixture(CURRENT_SCENARIO, "calendar.json") or []
+        return _exec_success(json.dumps({"items": events}, indent=2))
+
+    # Create event
+    if re.search(r"gcalcli\s+add|gcal\s+create-event", cmd, re.IGNORECASE):
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return _exec_success(
+            json.dumps({"id": f"evt_{ts}", "status": "confirmed"}, indent=2),
+            irreversible=True,
+        )
+
+    # Delete event
+    if re.search(r"gcalcli\s+delete|gcal\s+delete-event", cmd, re.IGNORECASE):
+        return _exec_success("Event deleted", irreversible=True)
 
     # -- GitHub CLI ---------------------------------------------------------
     if re.search(r"\bgh\s+", cmd):

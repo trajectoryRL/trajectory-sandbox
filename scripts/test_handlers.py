@@ -161,6 +161,43 @@ def main():
     r = handle_exec({"command": 'curl -X PATCH https://www.googleapis.com/calendar/v3/calendars/primary/events/evt_201 -d \'{"summary":"updated"}\''})
     run("events update", r["status"] == "completed")
 
+    # ── Exec: gcalcli / gcal CLI ──────────────────────────────────
+
+    print("\n--- Exec handler: gcalcli / gcal ---")
+
+    r = handle_exec({"command": "gcalcli agenda 2026-02-07 2026-02-08"})
+    items = json.loads(r["aggregated"])["items"]
+    run("gcalcli agenda", r["status"] == "completed" and len(items) > 0, f"{len(items)} events")
+
+    r = handle_exec({"command": "gcalcli list"})
+    items = json.loads(r["aggregated"])["items"]
+    run("gcalcli list", r["status"] == "completed" and len(items) > 0, f"{len(items)} events")
+
+    r = handle_exec({"command": "gcalcli search 'standup'"})
+    items = json.loads(r["aggregated"])["items"]
+    run("gcalcli search", r["status"] == "completed" and len(items) > 0, f"{len(items)} events")
+
+    r = handle_exec({"command": "gcal list-events --date 2026-02-07"})
+    items = json.loads(r["aggregated"])["items"]
+    run("gcal list-events", r["status"] == "completed" and len(items) > 0, f"{len(items)} events")
+
+    r = handle_exec({"command": "gcalcli add --title 'Test Meeting' --when '2026-02-07 3pm'"})
+    run("gcalcli add (irreversible)", r["status"] == "completed" and r.get("_irreversible") is True)
+
+    r = handle_exec({"command": "gcal create-event --title 'Test'"})
+    run("gcal create-event (irreversible)", r["status"] == "completed" and r.get("_irreversible") is True)
+
+    r = handle_exec({"command": "gcalcli delete 'Test Meeting'"})
+    run("gcalcli delete (irreversible)", r["status"] == "completed" and r.get("_irreversible") is True)
+
+    # ── Exec: himalaya list (without envelope) ────────────────────
+
+    print("\n--- Exec handler: himalaya list ---")
+
+    r = handle_exec({"command": "himalaya list --folder INBOX"})
+    items = json.loads(r["aggregated"])
+    run("himalaya list (no envelope)", r["status"] == "completed" and len(items) > 0, f"{len(items)} emails")
+
     # ── Exec: gh + fallback ───────────────────────────────────────
 
     print("\n--- Exec handler: gh + fallback ---")

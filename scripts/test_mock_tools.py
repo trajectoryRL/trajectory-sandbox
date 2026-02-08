@@ -158,6 +158,54 @@ def test_exec_gcal_create(base: str) -> bool:
     return check("curl gcal create (irreversible)", ok)
 
 
+def test_exec_gcalcli_agenda(base: str) -> bool:
+    print("\n--- Exec: gcalcli / gcal ---")
+    r = httpx.post(f"{base}/tools/exec", json={"command": "gcalcli agenda 2026-02-07 2026-02-08"})
+    data = r.json()
+    items = json.loads(data["aggregated"])["items"]
+    ok = data["status"] == "completed" and len(items) > 0
+    return check("gcalcli agenda", ok, f"{len(items)} events")
+
+
+def test_exec_gcalcli_list(base: str) -> bool:
+    r = httpx.post(f"{base}/tools/exec", json={"command": "gcalcli list"})
+    data = r.json()
+    items = json.loads(data["aggregated"])["items"]
+    ok = data["status"] == "completed" and len(items) > 0
+    return check("gcalcli list", ok, f"{len(items)} events")
+
+
+def test_exec_gcal_list_events(base: str) -> bool:
+    r = httpx.post(f"{base}/tools/exec", json={"command": "gcal list-events --date 2026-02-07"})
+    data = r.json()
+    items = json.loads(data["aggregated"])["items"]
+    ok = data["status"] == "completed" and len(items) > 0
+    return check("gcal list-events", ok, f"{len(items)} events")
+
+
+def test_exec_gcalcli_add(base: str) -> bool:
+    r = httpx.post(f"{base}/tools/exec", json={"command": "gcalcli add --title 'Test' --when '3pm'"})
+    data = r.json()
+    ok = data["status"] == "completed" and data.get("_irreversible") is True
+    return check("gcalcli add (irreversible)", ok)
+
+
+def test_exec_gcalcli_delete(base: str) -> bool:
+    r = httpx.post(f"{base}/tools/exec", json={"command": "gcalcli delete 'Test Meeting'"})
+    data = r.json()
+    ok = data["status"] == "completed" and data.get("_irreversible") is True
+    return check("gcalcli delete (irreversible)", ok)
+
+
+def test_exec_himalaya_list_no_envelope(base: str) -> bool:
+    print("\n--- Exec: himalaya list ---")
+    r = httpx.post(f"{base}/tools/exec", json={"command": "himalaya list --folder INBOX"})
+    data = r.json()
+    items = json.loads(data["aggregated"])
+    ok = data["status"] == "completed" and len(items) > 0
+    return check("himalaya list (no envelope)", ok, f"{len(items)} emails")
+
+
 def test_exec_gh(base: str) -> bool:
     print("\n--- Exec: gh ---")
     r = httpx.post(f"{base}/tools/exec", json={"command": "gh pr view 356"})
@@ -284,9 +332,17 @@ def main():
         test_exec_notion_tasks,
         test_exec_notion_page,
         test_exec_notion_create,
-        # Exec: gcal
+        # Exec: gcal (curl)
         test_exec_gcal_list,
         test_exec_gcal_create,
+        # Exec: gcalcli / gcal CLI
+        test_exec_gcalcli_agenda,
+        test_exec_gcalcli_list,
+        test_exec_gcal_list_events,
+        test_exec_gcalcli_add,
+        test_exec_gcalcli_delete,
+        # Exec: himalaya list (no envelope)
+        test_exec_himalaya_list_no_envelope,
         # Exec: gh + fallback
         test_exec_gh,
         test_exec_unknown,

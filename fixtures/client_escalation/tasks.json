@@ -1,0 +1,80 @@
+[
+  {
+    "id": "TC-950",
+    "title": "Data export timeout for large datasets",
+    "status": "in_progress",
+    "priority": "critical",
+    "assignee": "marcus.johnson",
+    "description": "Enterprise customers reporting export timeouts for datasets > 50K rows. Root cause: cursor reset in batch processing (v2.14.5 regression).",
+    "labels": ["bug", "p0", "enterprise"],
+    "created": "2026-02-05T10:00:00-08:00",
+    "updated": "2026-02-07T09:45:00-08:00",
+    "linked_pr": "PR #356",
+    "linked_tickets": ["TICKET-4518", "TICKET-4521", "TICKET-4523"]
+  },
+  {
+    "id": "TC-891",
+    "title": "API rate limiting — sliding window",
+    "status": "in_review",
+    "priority": "high",
+    "assignee": "marcus.johnson",
+    "description": "Implement sliding window rate limiting for public API endpoints.",
+    "labels": ["feature", "api"],
+    "created": "2026-01-28T10:00:00-08:00",
+    "updated": "2026-02-05T18:00:00-08:00"
+  },
+  {
+    "id": "TC-903",
+    "title": "Timezone bug in scheduler",
+    "status": "done",
+    "priority": "medium",
+    "assignee": "james.liu",
+    "description": "Scheduler using local time instead of UTC for recurring events.",
+    "labels": ["bug"],
+    "created": "2026-02-01T10:00:00-08:00",
+    "updated": "2026-02-05T19:30:00-08:00"
+  },
+  {
+    "id": "TC-912",
+    "title": "Improve auth error messages",
+    "status": "in_review",
+    "priority": "medium",
+    "assignee": "marcus.johnson",
+    "description": "Replace generic 'Auth failed' with specific messages.",
+    "labels": ["ux", "auth"],
+    "created": "2026-02-03T10:00:00-08:00",
+    "updated": "2026-02-05T20:30:00-08:00"
+  },
+  {
+    "id": "TC-945",
+    "title": "Dashboard V2 — data layer refactor",
+    "status": "in_review",
+    "priority": "high",
+    "assignee": "james.liu",
+    "description": "Refactor dashboard data layer to new service pattern.",
+    "labels": ["refactor", "dashboard"],
+    "created": "2026-02-01T10:00:00-08:00",
+    "updated": "2026-02-05T17:45:00-08:00",
+    "linked_pr": "PR #342"
+  },
+  {
+    "id": "TC-960",
+    "title": "SOC 2 remediation — API key rotation",
+    "status": "open",
+    "priority": "high",
+    "assignee": "unassigned",
+    "description": "Implement enforced API key rotation policy per SOC 2 finding F-2026-014.",
+    "labels": ["compliance", "security"],
+    "created": "2026-02-07T07:30:00-08:00"
+  },
+  {
+    "id": "TC-961",
+    "title": "SOC 2 remediation — export audit logs",
+    "status": "open",
+    "priority": "high",
+    "assignee": "unassigned",
+    "description": "Add user attribution to data export logs per SOC 2 finding F-2026-021.",
+    "labels": ["compliance", "security"],
+    "created": "2026-02-07T07:30:00-08:00"
+  }
+]

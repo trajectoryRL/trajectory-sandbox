@@ -25,26 +25,25 @@ FIXTURES_DIR = SANDBOX_DIR / "fixtures"
 WORKSPACE_DIR = SANDBOX_DIR / "workspace"
 GENERATED_DIR = SANDBOX_DIR / "generated"
 
-# All known mock tool names (plugin names, underscore-separated)
+# Corrected-schema mock tool names (matching real OpenClaw tool surface)
 ALL_MOCK_TOOLS = [
-    "inbox_list", "email_read", "email_draft", "email_send", "email_archive",
-    "calendar_read", "calendar_create", "calendar_update", "calendar_delete",
-    "slack_list_channels", "slack_read_messages", "slack_post_message", "slack_send_dm",
-    "task_list", "task_get", "task_create", "task_update",
-    "doc_list", "doc_read", "doc_create",
-    "contacts_list", "contacts_get",
-    "memory_read", "memory_write",
-    "search_web",
+    "slack",          # Single tool with action param (readMessages, sendMessage, etc.)
+    "exec",           # Shell execution (pattern-matches himalaya/curl/gh commands)
+    "memory_search",  # Semantic memory search
+    "memory_get",     # Memory file read
+    "web_search",     # Web search
+    "web_fetch",      # Web page fetch
+    "read",           # File read
 ]
 
-# Built-in OpenClaw tools to always deny (sandbox safety)
+# Built-in OpenClaw tools to deny (prevent real execution in sandbox)
 DENY_TOOLS = [
-    "exec", "process", "browser", "canvas", "nodes",
-    "cron", "gateway", "web_search", "web_fetch", "apply_patch",
+    "process", "browser", "canvas", "nodes",
+    "cron", "gateway", "apply_patch",
 ]
 
 # Built-in OpenClaw tools to always allow alongside mock tools
-ALWAYS_ALLOW = ["read", "session_status"]
+ALWAYS_ALLOW = ["session_status"]
 
 # Base OpenClaw config template
 BASE_CONFIG = {

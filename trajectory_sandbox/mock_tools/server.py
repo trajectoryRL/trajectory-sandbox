@@ -1,20 +1,26 @@
 """
-Mock Tool Server — Generic tool server for trajectory sandbox evaluation.
+Mock Tool Server — Corrected-schema tool server for trajectory sandbox.
 
-Serves deterministic responses from fixture files. All common productivity
-tool categories are supported: email, calendar, messaging (Slack), tasks,
-documents, contacts, memory, and web search.
+Serves deterministic responses from fixture files. Tool names and dispatch
+match the REAL OpenClaw tool surface:
+
+  - slack         (single tool, action-dispatched: readMessages, sendMessage, etc.)
+  - exec          (pattern-matches himalaya/curl/gh commands against fixtures)
+  - memory_search / memory_get  (memory file search and read)
+  - web_search / web_fetch      (web search and page fetch)
+  - read          (workspace file read)
 
 Architecture:
-  - TOOL_CATALOG defines every known tool and its behavior
+  - TOOL_HANDLERS defines dispatch logic for each real tool name
   - A single generic endpoint `/tools/{tool_name}` dispatches all calls
-  - Behaviors: fixture_list, fixture_lookup, write_action, custom
-  - Adding a new tool = one dict entry + optional fixture file
+  - The `exec` handler uses pattern matching on command strings
+  - Adding a new fixture = drop a JSON file in fixtures/{scenario}/
 """
 
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,7 +40,7 @@ logger = logging.getLogger("mock-tools")
 # ---------------------------------------------------------------------------
 # App & Config
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Trajectory Sandbox — Mock Tools Server")
+app = FastAPI(title="Trajectory Sandbox — Mock Tools Server (Corrected Schema)")
 
 FIXTURES_PATH = Path(os.getenv("FIXTURES_PATH", "./fixtures"))
 LOG_PATH = Path(os.getenv("LOG_PATH", "./logs"))
@@ -45,170 +51,6 @@ LOG_PATH.mkdir(parents=True, exist_ok=True)
 # In-memory logs (reset per scenario)
 tool_calls: list[dict] = []
 all_requests: list[dict] = []
-
-
-# ============================================================================
-# Tool Catalog — every known mock tool
-# ============================================================================
-#
-# behavior types:
-#   fixture_list   — load fixture JSON (array), return as {response_key: [...]}
-#   fixture_lookup — find one item in fixture array by ID field
-#   write_action   — log the call, return a success response
-#   custom         — per-tool handler function
-#
-TOOL_CATALOG: dict[str, dict[str, Any]] = {
-    # -- Email & Inbox -------------------------------------------------------
-    "inbox.list": {
-        "behavior": "fixture_list",
-        "fixture": "inbox.json",
-        "response_key": "messages",
-        "transform": "inbox_summary",
-    },
-    "email.read": {
-        "behavior": "fixture_lookup",
-        "fixture": "inbox.json",
-        "lookup_field": "id",
-        "param_field": "message_id",
-        "response_key": "email",
-    },
-    "email.draft": {
-        "behavior": "custom",
-        "handler": "handle_email_draft",
-    },
-    "email.send": {
-        "behavior": "write_action",
-        "default_response": {"status": "sent"},
-        "echo_fields": ["draft_id"],
-        "irreversible": True,
-    },
-    "email.archive": {
-        "behavior": "write_action",
-        "default_response": {"status": "archived"},
-        "echo_fields": ["message_id"],
-    },
-
-    # -- Calendar ------------------------------------------------------------
-    "calendar.read": {
-        "behavior": "fixture_list",
-        "fixture": "calendar.json",
-        "response_key": "events",
-    },
-    "calendar.create": {
-        "behavior": "write_action",
-        "default_response": {"status": "created", "event_id": "evt_{ts}"},
-        "echo_fields": ["title", "start", "end"],
-        "irreversible": True,
-    },
-    "calendar.update": {
-        "behavior": "write_action",
-        "default_response": {"status": "updated"},
-        "echo_fields": ["event_id", "title", "start", "end"],
-    },
-    "calendar.delete": {
-        "behavior": "write_action",
-        "default_response": {"status": "deleted"},
-        "echo_fields": ["event_id"],
-        "irreversible": True,
-    },
-
-    # -- Messaging (Slack-like) ----------------------------------------------
-    "slack.list_channels": {
-        "behavior": "fixture_list",
-        "fixture": "slack_channels.json",
-        "response_key": "channels",
-    },
-    "slack.read_messages": {
-        "behavior": "custom",
-        "handler": "handle_slack_read_messages",
-    },
-    "slack.post_message": {
-        "behavior": "write_action",
-        "default_response": {"status": "posted", "message_id": "slack_msg_{ts}"},
-        "echo_fields": ["channel", "text"],
-        "irreversible": True,
-    },
-    "slack.send_dm": {
-        "behavior": "write_action",
-        "default_response": {"status": "sent", "message_id": "dm_{ts}"},
-        "echo_fields": ["user", "text"],
-        "irreversible": True,
-    },
-
-    # -- Tasks (Jira / Linear-like) ------------------------------------------
-    "task.list": {
-        "behavior": "fixture_list",
-        "fixture": "tasks.json",
-        "response_key": "tasks",
-    },
-    "task.get": {
-        "behavior": "fixture_lookup",
-        "fixture": "tasks.json",
-        "lookup_field": "id",
-        "param_field": "task_id",
-        "response_key": "task",
-    },
-    "task.create": {
-        "behavior": "write_action",
-        "default_response": {"status": "created", "task_id": "task_{ts}"},
-        "echo_fields": ["title", "description", "assignee", "priority"],
-    },
-    "task.update": {
-        "behavior": "write_action",
-        "default_response": {"status": "updated"},
-        "echo_fields": ["task_id", "status", "priority"],
-    },
-
-    # -- Documents (Drive / Notion-like) -------------------------------------
-    "doc.list": {
-        "behavior": "fixture_list",
-        "fixture": "documents.json",
-        "response_key": "documents",
-    },
-    "doc.read": {
-        "behavior": "fixture_lookup",
-        "fixture": "documents.json",
-        "lookup_field": "id",
-        "param_field": "document_id",
-        "response_key": "document",
-    },
-    "doc.create": {
-        "behavior": "write_action",
-        "default_response": {"status": "created", "document_id": "doc_{ts}"},
-        "echo_fields": ["title", "content"],
-    },
-
-    # -- Contacts ------------------------------------------------------------
-    "contacts.list": {
-        "behavior": "fixture_list",
-        "fixture": "contacts.json",
-        "response_key": "contacts",
-    },
-    "contacts.get": {
-        "behavior": "fixture_lookup",
-        "fixture": "contacts.json",
-        "lookup_field": "id",
-        "param_field": "contact_id",
-        "response_key": "contact",
-    },
-
-    # -- Memory / Notes ------------------------------------------------------
-    "memory.read": {
-        "behavior": "custom",
-        "handler": "handle_memory_read",
-    },
-    "memory.write": {
-        "behavior": "write_action",
-        "default_response": {"success": True},
-        "echo_fields": ["path"],
-    },
-
-    # -- Web Search (mock) ---------------------------------------------------
-    "search.web": {
-        "behavior": "custom",
-        "handler": "handle_search_web",
-    },
-}
 
 
 # ============================================================================
@@ -239,77 +81,493 @@ def log_tool_call(tool: str, args: dict, result: Any):
         f.write(json.dumps(entry) + "\n")
 
 
-def _flexget(data: dict, *keys: str, default: Any = None) -> Any:
-    """Get the first non-None value from data for any of the given keys."""
-    for k in keys:
-        val = data.get(k)
-        if val is not None:
-            return val
-    return default
+# ============================================================================
+# Slack handler — single tool, dispatches on "action" param
+# ============================================================================
+
+def handle_slack(data: dict) -> dict:
+    """Handle the unified slack tool, dispatch on action param."""
+    action = data.get("action", "")
+
+    if action == "readMessages":
+        channel_id = data.get("channelId", data.get("to", ""))
+        limit = data.get("limit", 50)
+        messages = load_fixture(CURRENT_SCENARIO, "slack_messages.json") or []
+        if channel_id:
+            ch = channel_id.lstrip("#")
+            messages = [
+                m for m in messages
+                if m.get("channel", "").lstrip("#") == ch
+                or m.get("channelId", "").lstrip("#") == ch
+            ]
+        messages = messages[:limit]
+        return {"ok": True, "messages": messages}
+
+    elif action == "sendMessage":
+        to = data.get("to", "")
+        content = data.get("content", "")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return {
+            "ok": True,
+            "messageId": f"slack_msg_{ts}",
+            "to": to,
+            "content": content,
+            "warning": "IRREVERSIBLE: message sent",
+        }
+
+    elif action == "editMessage":
+        return {
+            "ok": True,
+            "channelId": data.get("channelId", ""),
+            "messageId": data.get("messageId", ""),
+            "content": data.get("content", ""),
+        }
+
+    elif action == "deleteMessage":
+        return {
+            "ok": True,
+            "channelId": data.get("channelId", ""),
+            "messageId": data.get("messageId", ""),
+            "warning": "IRREVERSIBLE: message deleted",
+        }
+
+    elif action == "react":
+        return {
+            "ok": True,
+            "channelId": data.get("channelId", ""),
+            "messageId": data.get("messageId", ""),
+            "emoji": data.get("emoji", ""),
+            "removed": data.get("remove", False),
+        }
+
+    elif action == "reactions":
+        return {
+            "ok": True,
+            "reactions": [
+                {"emoji": "thumbsup", "count": 3, "users": ["U001", "U002", "U003"]},
+            ],
+        }
+
+    elif action == "pinMessage":
+        return {"ok": True, "pinned": True}
+
+    elif action == "unpinMessage":
+        return {"ok": True, "pinned": False}
+
+    elif action == "listPins":
+        return {"ok": True, "pins": []}
+
+    elif action == "memberInfo":
+        user_id = data.get("userId", "")
+        contacts = load_fixture(CURRENT_SCENARIO, "contacts.json") or []
+        member = next(
+            (c for c in contacts if c.get("slack_id") == user_id or c.get("id") == user_id),
+            None,
+        )
+        if member:
+            return {"ok": True, "user": member}
+        return {"ok": True, "user": {"id": user_id, "name": "Unknown User"}}
+
+    elif action == "emojiList":
+        return {"ok": True, "emojis": []}
+
+    else:
+        return {"ok": False, "error": f"Unknown slack action: {action}"}
 
 
 # ============================================================================
-# Custom Handlers
+# Exec handler — pattern-matches command strings against fixtures
 # ============================================================================
 
-def handle_email_draft(data: dict) -> dict:
-    message_id = _flexget(data, "message_id", "messageId", "email_id", "emailId", "id", default="unknown")
-    instructions = _flexget(data, "instructions", "body", "content", "text", "reply", "message", default="No instructions provided")
-    draft_id = f"draft_{message_id}"
-    preview = f"[Draft reply to {message_id}]: {str(instructions)[:100]}..."
-    return {"draft_id": draft_id, "preview": preview}
+def handle_exec(data: dict) -> dict:
+    """
+    Handle the exec tool by pattern-matching the command string.
+
+    Supported patterns:
+      - himalaya envelope list     -> inbox fixture
+      - himalaya message read <id> -> email lookup
+      - himalaya message write ... -> draft echo
+      - himalaya message send ...  -> send echo (irreversible)
+      - himalaya flag add ...      -> archive echo
+      - curl.*notion.so/v1/databases/.*/query -> task list
+      - curl.*notion.so/v1/pages/   -> task/doc lookup
+      - curl.*notion.so/v1/pages    -> task/doc create
+      - curl.*googleapis.com/calendar -> calendar fixture
+      - gh ...                      -> github mock
+    """
+    command = data.get("command", "")
+    cmd = command.strip()
+
+    # -- himalaya (email via CLI) -------------------------------------------
+
+    # List emails
+    if re.search(r"himalaya\s+envelope\s+list", cmd):
+        inbox = load_fixture(CURRENT_SCENARIO, "inbox.json") or []
+        summaries = [
+            {
+                "id": msg.get("id"),
+                "sender": msg.get("sender"),
+                "subject": msg.get("subject"),
+                "date": msg.get("received_ts", ""),
+                "flags": msg.get("labels", []),
+            }
+            for msg in inbox
+        ]
+        return _exec_success(json.dumps(summaries, indent=2))
+
+    # Read a specific email
+    m = re.search(r"himalaya\s+message\s+read\s+['\"]?(\S+)", cmd)
+    if m:
+        msg_id = m.group(1).strip("'\"")
+        inbox = load_fixture(CURRENT_SCENARIO, "inbox.json") or []
+        email = next((e for e in inbox if str(e.get("id")) == msg_id), None)
+        if email:
+            # Format like himalaya CLI output
+            text = (
+                f"From: {email.get('sender', '')}\n"
+                f"Subject: {email.get('subject', '')}\n"
+                f"Date: {email.get('received_ts', '')}\n\n"
+                f"{email.get('body', '')}"
+            )
+            return _exec_success(text)
+        return _exec_failure(f"Message not found: {msg_id}", exit_code=1)
+
+    # Draft / write email
+    if re.search(r"himalaya\s+(message\s+write|template\s+write|draft)", cmd):
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return _exec_success(f"Draft saved: draft_{ts}")
+
+    # Send email
+    if re.search(r"himalaya\s+message\s+send", cmd):
+        return _exec_success("Message sent successfully", irreversible=True)
+
+    # Archive / flag
+    if re.search(r"himalaya\s+flag\s+add", cmd):
+        return _exec_success("Flag added successfully")
+
+    # -- Notion API (tasks & docs via curl) ---------------------------------
+
+    # Query a database (task list)
+    if re.search(r"curl.*notion\.so/v1/databases/.*/query", cmd, re.IGNORECASE):
+        tasks = load_fixture(CURRENT_SCENARIO, "tasks.json") or []
+        return _exec_success(json.dumps({"results": tasks}, indent=2))
+
+    # Get a page (task/doc detail)
+    m2 = re.search(r"curl.*notion\.so/v1/pages/([a-f0-9-]+)", cmd, re.IGNORECASE)
+    if m2:
+        page_id = m2.group(1)
+        # Try tasks first, then documents
+        tasks = load_fixture(CURRENT_SCENARIO, "tasks.json") or []
+        item = next((t for t in tasks if str(t.get("id")) == page_id), None)
+        if not item:
+            docs = load_fixture(CURRENT_SCENARIO, "documents.json") or []
+            item = next((d for d in docs if str(d.get("id")) == page_id), None)
+        if item:
+            return _exec_success(json.dumps(item, indent=2))
+        return _exec_failure(f"Page not found: {page_id}", exit_code=1)
+
+    # Create a page (task/doc create) - POST without specific page ID
+    if re.search(r"curl.*-X\s*POST.*notion\.so/v1/pages", cmd, re.IGNORECASE):
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return _exec_success(json.dumps({"id": f"page_{ts}", "status": "created"}, indent=2))
+
+    # Update a page (PATCH)
+    if re.search(r"curl.*-X\s*PATCH.*notion\.so/v1/pages", cmd, re.IGNORECASE):
+        return _exec_success(json.dumps({"status": "updated"}, indent=2))
+
+    # Query databases list
+    if re.search(r"curl.*notion\.so/v1/databases\b", cmd, re.IGNORECASE):
+        docs = load_fixture(CURRENT_SCENARIO, "documents.json") or []
+        return _exec_success(json.dumps({"results": docs}, indent=2))
+
+    # -- Google Calendar API (via curl) -------------------------------------
+
+    # List events
+    if re.search(r"curl.*googleapis\.com/calendar/v3/calendars/.*/events", cmd, re.IGNORECASE):
+        # Check if it's a POST (create) vs GET (list)
+        if re.search(r"-X\s*POST", cmd):
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+            return _exec_success(
+                json.dumps({"id": f"evt_{ts}", "status": "confirmed"}, indent=2),
+                irreversible=True,
+            )
+        if re.search(r"-X\s*DELETE", cmd):
+            return _exec_success("", irreversible=True)
+        if re.search(r"-X\s*PATCH|-X\s*PUT", cmd):
+            return _exec_success(json.dumps({"status": "updated"}, indent=2))
+        # Default: GET (list events)
+        events = load_fixture(CURRENT_SCENARIO, "calendar.json") or []
+        return _exec_success(json.dumps({"items": events}, indent=2))
+
+    # -- GitHub CLI ---------------------------------------------------------
+    if re.search(r"\bgh\s+", cmd):
+        return _exec_success("(mock gh output)")
+
+    # -- Fallback: unknown command ------------------------------------------
+    return _exec_success(f"(mock output for: {cmd[:100]})")
 
 
-def handle_memory_read(data: dict) -> dict:
-    req_path = _flexget(data, "path", "key", default="")
+def _exec_success(output: str, irreversible: bool = False) -> dict:
+    """Format a successful exec result matching ExecToolDetails."""
+    result: dict[str, Any] = {
+        "status": "completed",
+        "exitCode": 0,
+        "durationMs": 42,
+        "aggregated": output,
+    }
+    if irreversible:
+        result["_irreversible"] = True
+    return result
+
+
+def _exec_failure(error: str, exit_code: int = 1) -> dict:
+    """Format a failed exec result matching ExecToolDetails."""
+    return {
+        "status": "failed",
+        "exitCode": exit_code,
+        "durationMs": 10,
+        "aggregated": error,
+    }
+
+
+# ============================================================================
+# Memory handlers
+# ============================================================================
+
+def handle_memory_search(data: dict) -> dict:
+    """Search memory files — returns matching snippets."""
+    query = data.get("query", "").lower()
+    max_results = data.get("maxResults", 5)
+    results = []
+
+    memory_dir = FIXTURES_PATH / CURRENT_SCENARIO / "memory"
+    if memory_dir.exists():
+        for fpath in sorted(memory_dir.iterdir()):
+            if fpath.is_file():
+                content = fpath.read_text()
+                # Simple keyword matching for mock
+                lines = content.split("\n")
+                for i, line in enumerate(lines):
+                    if any(word in line.lower() for word in query.split()):
+                        start = max(0, i - 1)
+                        end = min(len(lines), i + 3)
+                        snippet = "\n".join(lines[start:end])
+                        rel_path = f"memory/{fpath.name}"
+                        results.append({
+                            "snippet": snippet,
+                            "path": rel_path,
+                            "startLine": start + 1,
+                            "endLine": end,
+                            "score": 0.85,
+                            "citation": f"{rel_path}#L{start + 1}-L{end}",
+                        })
+                        if len(results) >= max_results:
+                            break
+            if len(results) >= max_results:
+                break
+
+    # Also search MEMORY.md if it exists
+    mem_md = FIXTURES_PATH / CURRENT_SCENARIO / "MEMORY.md"
+    if mem_md.exists() and len(results) < max_results:
+        content = mem_md.read_text()
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            if any(word in line.lower() for word in query.split()):
+                start = max(0, i - 1)
+                end = min(len(lines), i + 3)
+                snippet = "\n".join(lines[start:end])
+                results.append({
+                    "snippet": snippet,
+                    "path": "MEMORY.md",
+                    "startLine": start + 1,
+                    "endLine": end,
+                    "score": 0.80,
+                    "citation": f"MEMORY.md#L{start + 1}-L{end}",
+                })
+                if len(results) >= max_results:
+                    break
+
+    return {
+        "results": results,
+        "provider": "mock",
+        "citations": "on",
+    }
+
+
+def handle_memory_get(data: dict) -> dict:
+    """Read a specific memory file."""
+    req_path = data.get("path", "")
+    from_line = data.get("from", 1)
+    num_lines = data.get("lines", 100)
+
     try:
-        path = FIXTURES_PATH / CURRENT_SCENARIO / "memory" / req_path
-        if path.exists():
-            return {"content": path.read_text(), "exists": True}
+        # Try memory subdirectory first
+        fpath = FIXTURES_PATH / CURRENT_SCENARIO / req_path
+        if not fpath.exists():
+            fpath = FIXTURES_PATH / CURRENT_SCENARIO / "memory" / req_path
+        if fpath.exists():
+            content = fpath.read_text()
+            lines = content.split("\n")
+            start = max(0, from_line - 1)
+            end = start + num_lines
+            text = "\n".join(lines[start:end])
+            return {"path": req_path, "text": text}
     except Exception:
         pass
-    return {"content": None, "exists": False}
+    return {"path": req_path, "text": "", "error": f"File not found: {req_path}"}
 
 
-def handle_slack_read_messages(data: dict) -> dict:
-    """Read Slack messages, optionally filtered by channel."""
-    channel = _flexget(data, "channel", "channel_id", default=None)
-    messages = load_fixture(CURRENT_SCENARIO, "slack_messages.json") or []
-    if channel:
-        # Normalize: match with or without '#' prefix
-        ch = channel.lstrip("#")
-        messages = [
-            m for m in messages
-            if m.get("channel", "").lstrip("#") == ch
-        ]
-    return {"messages": messages}
+# ============================================================================
+# Web handlers
+# ============================================================================
 
+def handle_web_search(data: dict) -> dict:
+    """Mock web search — returns fixture results or generic placeholder."""
+    query = data.get("query", "")
+    count = data.get("count", 5)
 
-def handle_search_web(data: dict) -> dict:
-    """Mock web search — returns fixture results or a generic placeholder."""
-    query = _flexget(data, "query", "q", default="")
     results = load_fixture(CURRENT_SCENARIO, "web_search_results.json")
     if results:
         if isinstance(results, dict) and query in results:
-            return {"results": results[query]}
-        if isinstance(results, list):
-            return {"results": results}
+            items = results[query][:count]
+        elif isinstance(results, list):
+            items = results[:count]
+        else:
+            items = []
+        if items:
+            return {
+                "query": query,
+                "provider": "brave",
+                "count": len(items),
+                "tookMs": 234,
+                "cached": False,
+                "results": items,
+            }
+
     return {
+        "query": query,
+        "provider": "brave",
+        "count": 1,
+        "tookMs": 100,
+        "cached": False,
         "results": [
             {
                 "title": f"Search result for: {query}",
                 "url": f"https://example.com/search?q={query}",
-                "snippet": f"Mock search result for '{query}'",
+                "description": f"Mock search result for '{query}'.",
             }
-        ]
+        ],
     }
 
 
-CUSTOM_HANDLERS: dict[str, Any] = {
-    "handle_email_draft": handle_email_draft,
-    "handle_memory_read": handle_memory_read,
-    "handle_slack_read_messages": handle_slack_read_messages,
-    "handle_search_web": handle_search_web,
+def handle_web_fetch(data: dict) -> dict:
+    """Mock web fetch — returns fixture content or placeholder."""
+    url = data.get("url", "")
+    extract_mode = data.get("extractMode", "markdown")
+
+    results = load_fixture(CURRENT_SCENARIO, "web_pages.json")
+    if results and isinstance(results, dict) and url in results:
+        page = results[url]
+        return {
+            "url": url,
+            "finalUrl": url,
+            "status": 200,
+            "contentType": "text/html",
+            "title": page.get("title", ""),
+            "extractMode": extract_mode,
+            "extractor": "mock",
+            "truncated": False,
+            "length": len(page.get("text", "")),
+            "text": page.get("text", ""),
+            "cached": False,
+        }
+
+    return {
+        "url": url,
+        "finalUrl": url,
+        "status": 200,
+        "contentType": "text/html",
+        "title": "Mock Page",
+        "extractMode": extract_mode,
+        "extractor": "mock",
+        "truncated": False,
+        "length": 50,
+        "text": f"(Mock content for {url})",
+        "cached": False,
+    }
+
+
+# ============================================================================
+# Read handler (workspace files)
+# ============================================================================
+
+def handle_read(data: dict) -> dict:
+    """Read a workspace file from fixtures."""
+    req_path = data.get("path", "")
+    from_line = data.get("from", 1)
+    num_lines = data.get("lines", 2000)
+
+    # Try direct path in fixture dir
+    for candidate in [
+        FIXTURES_PATH / CURRENT_SCENARIO / req_path,
+        FIXTURES_PATH / CURRENT_SCENARIO / os.path.basename(req_path),
+    ]:
+        if candidate.exists() and candidate.is_file():
+            content = candidate.read_text()
+            lines = content.split("\n")
+            start = max(0, from_line - 1)
+            end = start + num_lines
+            # Format like cat -n
+            numbered = "\n".join(
+                f"  {start + i + 1}\t{line}"
+                for i, line in enumerate(lines[start:end])
+            )
+            return {"path": req_path, "content": numbered}
+
+    return {"path": req_path, "content": "", "error": f"File not found: {req_path}"}
+
+
+# ============================================================================
+# Tool Dispatcher
+# ============================================================================
+
+TOOL_HANDLERS: dict[str, Any] = {
+    "slack": handle_slack,
+    "exec": handle_exec,
+    "memory_search": handle_memory_search,
+    "memory_get": handle_memory_get,
+    "web_search": handle_web_search,
+    "web_fetch": handle_web_fetch,
+    "read": handle_read,
+}
+
+# Legacy tool name aliases (for backward compatibility during migration)
+LEGACY_ALIASES: dict[str, str] = {
+    "inbox.list": "exec",
+    "email.read": "exec",
+    "email.draft": "exec",
+    "email.send": "exec",
+    "email.archive": "exec",
+    "calendar.read": "exec",
+    "calendar.create": "exec",
+    "calendar.update": "exec",
+    "calendar.delete": "exec",
+    "slack.list_channels": "slack",
+    "slack.read_messages": "slack",
+    "slack.post_message": "slack",
+    "slack.send_dm": "slack",
+    "task.list": "exec",
+    "task.get": "exec",
+    "task.create": "exec",
+    "task.update": "exec",
+    "doc.list": "exec",
+    "doc.read": "exec",
+    "doc.create": "exec",
+    "contacts.list": "read",
+    "contacts.get": "read",
+    "memory.read": "memory_get",
+    "memory.write": "memory_get",
+    "search.web": "web_search",
 }
 
 
@@ -328,7 +586,12 @@ async def log_all_requests_middleware(request: Request, call_next):
         except (json.JSONDecodeError, ValueError):
             body_json = {"_raw": body_bytes.decode("utf-8", errors="replace")}
 
-        logger.debug("REQUEST  %s %s  body=%s", request.method, request.url.path, json.dumps(body_json, default=str)[:500])
+        logger.debug(
+            "REQUEST  %s %s  body=%s",
+            request.method,
+            request.url.path,
+            json.dumps(body_json, default=str)[:500],
+        )
 
     response = await call_next(request)
 
@@ -347,7 +610,9 @@ async def log_all_requests_middleware(request: Request, call_next):
             f.write(json.dumps(entry) + "\n")
 
         if response.status_code >= 400:
-            logger.warning("FAILED   %s  status=%d", request.url.path, response.status_code)
+            logger.warning(
+                "FAILED   %s  status=%d", request.url.path, response.status_code
+            )
 
     return response
 
@@ -358,12 +623,8 @@ async def log_all_requests_middleware(request: Request, call_next):
 
 @app.post("/tools/{tool_name:path}")
 async def handle_tool(tool_name: str, request: Request):
-    """Generic handler — dispatches any tool call via the catalog."""
+    """Generic handler — dispatches tool calls to the correct handler."""
     global CURRENT_SCENARIO
-
-    tool_def = TOOL_CATALOG.get(tool_name)
-    if not tool_def:
-        raise HTTPException(404, f"Unknown tool: {tool_name}. Known tools: {sorted(TOOL_CATALOG.keys())}")
 
     # Parse body
     body = await request.body()
@@ -374,69 +635,23 @@ async def handle_tool(tool_name: str, request: Request):
 
     logger.info("TOOL %-25s  body=%s", tool_name, json.dumps(data, default=str)[:500])
 
-    behavior = tool_def["behavior"]
-    result: dict
-
-    # --- fixture_list: load fixture array, return keyed -----------------------
-    if behavior == "fixture_list":
-        fixture_data = load_fixture(CURRENT_SCENARIO, tool_def["fixture"])
-        if fixture_data is None:
-            fixture_data = []
-        # Apply inbox-style summary transform if specified
-        if tool_def.get("transform") == "inbox_summary":
-            fixture_data = [
-                {
-                    "id": msg.get("id"),
-                    "sender": msg.get("sender"),
-                    "subject": msg.get("subject"),
-                    "snippet": str(msg.get("body", ""))[:100],
-                    "received_ts": msg.get("received_ts", ""),
-                    "labels": msg.get("labels", []),
-                    "is_urgent": msg.get("is_urgent", False),
-                }
-                for msg in fixture_data
-            ]
-        result = {tool_def["response_key"]: fixture_data}
-
-    # --- fixture_lookup: find one item by ID ----------------------------------
-    elif behavior == "fixture_lookup":
-        fixture_data = load_fixture(CURRENT_SCENARIO, tool_def["fixture"])
-        if fixture_data is None:
-            result = {tool_def["response_key"]: None, "found": False}
+    # Find handler
+    handler = TOOL_HANDLERS.get(tool_name)
+    if not handler:
+        # Try legacy alias
+        alias = LEGACY_ALIASES.get(tool_name)
+        if alias:
+            handler = TOOL_HANDLERS.get(alias)
+            logger.info("LEGACY ALIAS %s -> %s", tool_name, alias)
         else:
-            lookup_val = _flexget(data, tool_def["param_field"], "id", default="")
-            item = next(
-                (x for x in fixture_data if str(x.get(tool_def["lookup_field"])) == str(lookup_val)),
-                None,
+            raise HTTPException(
+                404,
+                f"Unknown tool: {tool_name}. "
+                f"Known tools: {sorted(TOOL_HANDLERS.keys())}. "
+                f"Legacy aliases: {sorted(LEGACY_ALIASES.keys())}",
             )
-            result = {tool_def["response_key"]: item, "found": item is not None}
 
-    # --- write_action: log and return success ---------------------------------
-    elif behavior == "write_action":
-        result = dict(tool_def.get("default_response", {"success": True}))
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        # Template {field} placeholders in response values
-        for key, val in list(result.items()):
-            if isinstance(val, str) and "{" in val:
-                try:
-                    result[key] = val.format(ts=ts, **data)
-                except (KeyError, IndexError):
-                    result[key] = val.replace("{ts}", ts)
-        # Echo requested fields from input
-        for field in tool_def.get("echo_fields", []):
-            if field in data:
-                result[field] = data[field]
-
-    # --- custom: delegate to a handler function -------------------------------
-    elif behavior == "custom":
-        handler = CUSTOM_HANDLERS.get(tool_def["handler"])
-        if not handler:
-            raise HTTPException(500, f"Missing handler: {tool_def['handler']}")
-        result = handler(data)
-
-    else:
-        raise HTTPException(500, f"Unknown behavior: {behavior}")
-
+    result = handler(data)
     log_tool_call(tool_name, data, result)
     return JSONResponse(content=result)
 
@@ -450,7 +665,8 @@ async def health():
     return {
         "status": "ok",
         "scenario": CURRENT_SCENARIO,
-        "tools_available": len(TOOL_CATALOG),
+        "tools_available": len(TOOL_HANDLERS),
+        "tool_names": sorted(TOOL_HANDLERS.keys()),
     }
 
 
@@ -486,16 +702,12 @@ async def get_all_requests():
 
 @app.get("/tools")
 async def list_tools():
-    """List all known tools and their behavior type."""
-    tools = []
-    for name, defn in TOOL_CATALOG.items():
-        tools.append({
-            "name": name,
-            "behavior": defn["behavior"],
-            "irreversible": defn.get("irreversible", False),
-            "fixture": defn.get("fixture"),
-        })
-    return {"tools": tools, "count": len(tools)}
+    """List all known tools."""
+    return {
+        "tools": sorted(TOOL_HANDLERS.keys()),
+        "count": len(TOOL_HANDLERS),
+        "legacy_aliases": sorted(LEGACY_ALIASES.keys()),
+    }
 
 
 # ============================================================================

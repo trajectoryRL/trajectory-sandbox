@@ -230,8 +230,20 @@ if [ "$QUICK" = false ]; then
                     if python scripts/test_mock_tools.py --base-url http://localhost:3001; then
                         echo ""
 
-                        # Try to run an actual episode (if OpenClaw gateway is up)
-                        if curl -sf "http://localhost:${OPENCLAW_PORT:-18790}/health" > /dev/null 2>&1; then
+                        # Wait for OpenClaw gateway to be ready
+                        echo "Waiting for OpenClaw gateway..."
+                        GW_PORT="${OPENCLAW_PORT:-18790}"
+                        GW_READY=false
+                        for i in $(seq 1 60); do
+                            if curl -sf "http://localhost:${GW_PORT}/health" > /dev/null 2>&1; then
+                                echo "  OpenClaw gateway: healthy"
+                                GW_READY=true
+                                break
+                            fi
+                            sleep 2
+                        done
+
+                        if [ "$GW_READY" = true ]; then
                             echo "OpenClaw gateway is up — running episode..."
                             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
                             RESULT_DIR="results/test_${TIMESTAMP}"
@@ -287,7 +299,8 @@ print(f'Score saved to: $RESULT_DIR/score.json')
                                 layer_pass "4-docker"
                             fi
                         else
-                            echo -e "${YELLOW}OpenClaw gateway not responding — mock tools tests passed${NC}"
+                            echo -e "${YELLOW}OpenClaw gateway not ready after 120s — mock tools tests passed${NC}"
+                            docker compose logs openclaw-gateway 2>&1 | tail -20
                             layer_pass "4-docker"
                         fi
                     else

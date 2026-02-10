@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup a scenario for the trajectory sandbox.
+Setup a scenario for ClawBench.
 
 Reads a scenario YAML config, generates the OpenClaw config with the
 correct tool allow-list, and copies workspace files (AGENTS.md variant,
@@ -75,7 +75,7 @@ BASE_CONFIG = {
         # don't conflict with the sandbox plugin's mock versions.
         "slots": {"memory": "none"},
         "entries": {
-            "trajectory-sandbox-tools": {
+            "clawbench-tools": {
                 "enabled": True,
                 "config": {
                     "mockServerUrl": "http://mock-tools:3001",
@@ -115,7 +115,7 @@ def generate_openclaw_config(scenario: dict) -> dict:
     config = json.loads(json.dumps(BASE_CONFIG))  # deep copy
 
     # Set scenario in plugin config
-    config["plugins"]["entries"]["trajectory-sandbox-tools"]["config"]["scenario"] = scenario["name"]
+    config["plugins"]["entries"]["clawbench-tools"]["config"]["scenario"] = scenario["name"]
 
     # Build tool allow-list from scenario
     scenario_tools = scenario.get("tools", [])
@@ -162,7 +162,7 @@ def setup_workspace(scenario: dict, variant: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Setup a trajectory sandbox scenario")
+    parser = argparse.ArgumentParser(description="Setup a ClawBench scenario")
     parser.add_argument("scenario", nargs="?", default=None, help="Scenario name")
     parser.add_argument("variant", nargs="?", default="baseline", help="AGENTS.md variant (default: baseline)")
     parser.add_argument("--scenario", "-s", dest="scenario_flag", help="Scenario name (alternative)")

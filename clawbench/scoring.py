@@ -1,5 +1,5 @@
 """
-Scoring engine for trajectory sandbox episodes.
+Scoring engine for ClawBench episodes.
 
 Evaluates agent performance against scenario-specific rubrics defined
 in the scoring: section of scenario YAML files.

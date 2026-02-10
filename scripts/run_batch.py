@@ -47,7 +47,7 @@ import yaml
 
 # Add project root to path so we can import the scoring module
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from trajectory_sandbox.scoring import score_episode, format_score_summary, format_score_markdown
+from clawbench.scoring import score_episode, format_score_summary, format_score_markdown
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -104,7 +104,7 @@ def generate_all_tools_config():
         },
         "plugins": {
             "entries": {
-                "trajectory-sandbox-tools": {
+                "clawbench-tools": {
                     "enabled": True,
                     "config": {"mockServerUrl": "http://mock-tools:3001", "scenario": "inbox_triage"},
                 },

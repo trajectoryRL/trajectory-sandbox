@@ -33,7 +33,7 @@ def main(
     print(f"Scenario: {scenario}")
     
     uvicorn.run(
-        "trajectory_sandbox.mock_tools.server:app",
+        "clawbench.mock_tools.server:app",
         host="0.0.0.0",
         port=port,
         reload=True,

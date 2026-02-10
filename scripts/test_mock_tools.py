@@ -3,7 +3,7 @@
 Test mock tools server (corrected schema v0.3.0).
 
 Requires the server to be running:
-    FIXTURES_PATH=./fixtures SCENARIO=client_escalation python -m trajectory_sandbox.mock_tools.server
+    FIXTURES_PATH=./fixtures SCENARIO=client_escalation python -m clawbench.mock_tools.server
 
 Usage:
     python scripts/test_mock_tools.py
@@ -310,7 +310,7 @@ def main():
     except httpx.ConnectError:
         print(f"\n[ERROR] Cannot connect to {base}")
         print("Start the server first:")
-        print("  FIXTURES_PATH=./fixtures SCENARIO=client_escalation python -m trajectory_sandbox.mock_tools.server")
+        print("  FIXTURES_PATH=./fixtures SCENARIO=client_escalation python -m clawbench.mock_tools.server")
         sys.exit(1)
 
     tests = [

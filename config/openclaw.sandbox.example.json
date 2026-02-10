@@ -4,7 +4,7 @@
   },
   "plugins": {
     "entries": {
-      "trajectory-sandbox-tools": {
+      "clawbench-tools": {
         "enabled": true,
         "config": {
           "mockServerUrl": "http://host.docker.internal:3001",

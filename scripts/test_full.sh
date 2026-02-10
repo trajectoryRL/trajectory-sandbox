@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Full end-to-end test for trajectory sandbox (corrected schema v0.3.0)
+# Full end-to-end test for ClawBench (corrected schema v0.3.0)
 #
 # Runs all test layers:
 #   1. Handler unit tests (in-process, no server)
@@ -100,7 +100,7 @@ cleanup_docker() {
 
 trap 'cleanup_mock_server' EXIT
 
-echo -e "${BOLD}Trajectory Sandbox — Full Test Suite${NC}"
+echo -e "${BOLD}ClawBench — Full Test Suite${NC}"
 echo "Scenario: $SCENARIO ($VARIANT)"
 echo "Mode: $(if $QUICK; then echo 'quick (no Docker)'; elif $DOCKER_ONLY; then echo 'Docker only'; else echo 'full'; fi)"
 
@@ -139,7 +139,7 @@ if [ "$DOCKER_ONLY" = false ]; then
 
     echo "Starting mock server on port 3001..."
     FIXTURES_PATH=./fixtures SCENARIO="$SCENARIO" \
-        python -m trajectory_sandbox.mock_tools.server &
+        python -m clawbench.mock_tools.server &
     MOCK_SERVER_PID=$!
 
     # Wait for server to start
@@ -260,7 +260,7 @@ if [ "$QUICK" = false ]; then
                                 python -c "
 import json, yaml, sys
 sys.path.insert(0, '.')
-from trajectory_sandbox.scoring import score_episode, format_score_summary
+from clawbench.scoring import score_episode, format_score_summary
 
 with open('$RESULT_DIR/${SCENARIO}_${VARIANT}.json') as f:
     result = json.load(f)

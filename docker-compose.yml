@@ -1,4 +1,4 @@
-# Docker Compose for Trajectory Sandbox
+# Docker Compose for ClawBench
 #
 # Runs OpenClaw gateway with mock tools for AGENTS.md evaluation.
 #
@@ -38,14 +38,14 @@ services:
       retries: 3
 
   # ==========================================================================
-  # OpenClaw Gateway (Trajectory Sandbox Edition)
+  # OpenClaw Gateway (ClawBench Edition)
   # Built from ../openclaw with pre-configured settings.
   # Tool allow-list is scenario-specific (generated/openclaw.json).
   # ==========================================================================
   openclaw-gateway:
     build:
       context: ../openclaw
-      dockerfile: Dockerfile.trajectory-sandbox
+      dockerfile: Dockerfile.clawbench
     ports:
       - "${OPENCLAW_PORT:-18790}:18789"
     volumes:

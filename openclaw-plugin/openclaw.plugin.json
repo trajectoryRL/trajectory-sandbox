@@ -1,8 +1,8 @@
 {
-  "id": "trajectory-sandbox-tools",
-  "name": "Trajectory Sandbox Tools",
+  "id": "clawbench-tools",
+  "name": "ClawBench Tools",
   "version": "0.2.0",
-  "description": "Comprehensive mock tool library for trajectory sandbox evaluation — 25 tools across email, calendar, Slack, tasks, documents, contacts, memory, and web search",
+  "description": "Comprehensive mock tool library for ClawBench evaluation — 25 tools across email, calendar, Slack, tasks, documents, contacts, memory, and web search",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

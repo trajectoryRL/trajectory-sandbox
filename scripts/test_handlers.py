@@ -6,7 +6,7 @@ This tests the Python handler functions in-process — fastest possible
 validation. No Docker, no HTTP server, no network.
 
 Usage:
-    cd trajectory-sandbox
+    cd clawbench
     python scripts/test_handlers.py
     python scripts/test_handlers.py --scenario client_escalation
 """
@@ -36,7 +36,7 @@ def main():
     os.environ["FIXTURES_PATH"] = "./fixtures"
     os.environ["SCENARIO"] = args.scenario
 
-    from trajectory_sandbox.mock_tools.server import (
+    from clawbench.mock_tools.server import (
         handle_exec,
         handle_memory_get,
         handle_memory_search,

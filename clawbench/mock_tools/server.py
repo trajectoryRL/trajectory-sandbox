@@ -1,5 +1,5 @@
 """
-Mock Tool Server — Corrected-schema tool server for trajectory sandbox.
+Mock Tool Server — Corrected-schema tool server for ClawBench.
 
 Serves deterministic responses from fixture files. Tool names and dispatch
 match the REAL OpenClaw tool surface:
@@ -40,7 +40,7 @@ logger = logging.getLogger("mock-tools")
 # ---------------------------------------------------------------------------
 # App & Config
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Trajectory Sandbox — Mock Tools Server (Corrected Schema)")
+app = FastAPI(title="ClawBench — Mock Tools Server (Corrected Schema)")
 
 FIXTURES_PATH = Path(os.getenv("FIXTURES_PATH", "./fixtures"))
 LOG_PATH = Path(os.getenv("LOG_PATH", "./logs"))

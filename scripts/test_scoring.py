@@ -6,7 +6,7 @@ Validates that the scoring rubric correctly differentiates good
 (optimized) vs bad (baseline) agent behavior.
 
 Usage:
-    cd trajectory-sandbox
+    cd clawbench
     python scripts/test_scoring.py
     python scripts/test_scoring.py --scenario client_escalation
 """
@@ -16,7 +16,7 @@ import sys
 
 import yaml
 
-from trajectory_sandbox.scoring import format_score_summary, score_episode
+from clawbench.scoring import format_score_summary, score_episode
 
 PASS = "\033[92mPASS\033[0m"
 FAIL = "\033[91mFAIL\033[0m"

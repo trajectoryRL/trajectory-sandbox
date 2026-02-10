@@ -1,8 +1,8 @@
 /**
- * Trajectory Sandbox Tools — OpenClaw Plugin
+ * ClawBench Tools — OpenClaw Plugin
  *
  * NOTE: This is a reference copy. The canonical version lives at:
- *   openclaw/extensions/trajectory-sandbox-tools/index.ts
+ *   openclaw/extensions/clawbench-tools/index.ts
  *
  * Comprehensive mock tool library for sandbox evaluation. Registers ALL
  * common productivity tools (email, calendar, Slack, tasks, documents,
@@ -389,7 +389,7 @@ function getPluginConfig(api: OpenClawPluginApi): PluginConfig {
   const entries = api.config.plugins?.entries as
     | Record<string, { config?: PluginConfig }>
     | undefined;
-  return entries?.["trajectory-sandbox-tools"]?.config ?? {};
+  return entries?.["clawbench-tools"]?.config ?? {};
 }
 
 async function callMockServer(
@@ -431,11 +431,11 @@ async function callMockServer(
 // Plugin definition
 // ---------------------------------------------------------------------------
 
-const trajectorySandboxPlugin = {
-  id: "trajectory-sandbox-tools",
-  name: "Trajectory Sandbox Tools",
+const clawBenchPlugin = {
+  id: "clawbench-tools",
+  name: "ClawBench Tools",
   description:
-    "Comprehensive mock tool library for trajectory sandbox evaluation (email, calendar, Slack, tasks, documents, contacts, memory, web search)",
+    "Comprehensive mock tool library for ClawBench evaluation (email, calendar, Slack, tasks, documents, contacts, memory, web search)",
   configSchema: {
     type: "object" as const,
     additionalProperties: false,
@@ -454,7 +454,7 @@ const trajectorySandboxPlugin = {
   },
 
   register(api: OpenClawPluginApi) {
-    api.logger.info("Trajectory Sandbox Tools plugin loading...");
+    api.logger.info("ClawBench Tools plugin loading...");
 
     const pluginConfig = getPluginConfig(api);
 
@@ -528,9 +528,9 @@ const trajectorySandboxPlugin = {
     }
 
     api.logger.info(
-      `Trajectory Sandbox Tools plugin loaded: ${TOOLS.length} tools registered`,
+      `ClawBench Tools plugin loaded: ${TOOLS.length} tools registered`,
     );
   },
 };
 
-export default trajectorySandboxPlugin;
+export default clawBenchPlugin;

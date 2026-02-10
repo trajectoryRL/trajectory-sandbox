@@ -1,5 +1,5 @@
 """
-CLI for trajectory-sandbox.
+CLI for ClawBench.
 """
 
 import json
@@ -12,7 +12,7 @@ from rich.table import Table
 from .harness.scenario import Scenario
 from .harness.episode import EpisodeRunner, run_comparison
 
-app = typer.Typer(help="Trajectory Sandbox - Evaluate AGENTS.md policies")
+app = typer.Typer(help="ClawBench - Evaluate AGENTS.md policies")
 console = Console()
 
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run Trajectory Sandbox
+# Run ClawBench
 #
 # Usage:
 #   ./scripts/run.sh <scenario> [variant]
@@ -63,7 +63,7 @@ PORT="${OPENCLAW_PORT:-18790}"
 
 echo ""
 echo "=============================================="
-echo "Starting Trajectory Sandbox"
+echo "Starting ClawBench"
 echo "=============================================="
 echo ""
 echo "Scenario: $SCENARIO"

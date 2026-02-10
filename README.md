@@ -1,4 +1,4 @@
-# OpenClaw Trajectory Evals
+# ClawBench
 
 > Deterministic, scenario-based evaluation for [OpenClaw](https://github.com/openclaw/openclaw) agents. Catch bad tool-use decisions before production.
 
@@ -39,7 +39,7 @@ OpenClaw agents are powerful — they read email, manage calendars, post to Slac
 - **LLM-as-judge** evals are expensive, slow, and non-deterministic. You get different scores on the same run.
 - **Manual testing** doesn't scale, and you can't regression-test prompt changes.
 
-Trajectory Evals gives you **pytest-like rigor for agent behavior**: define a scenario, run the agent, score the trajectory against a rubric. Change your AGENTS.md, re-run, see exactly what improved and what regressed.
+ClawBench gives you **pytest-like rigor for agent behavior**: define a scenario, run the agent, score the trajectory against a rubric. Change your AGENTS.md, re-run, see exactly what improved and what regressed.
 
 Beyond one-off testing, the deterministic scoring output is a **reward signal**. Use it to drive RL-style optimization of AGENTS.md instructions, fine-tune open-source models on high-scoring trajectories, or build automated prompt search pipelines. Same scenarios, same rubrics — the scores are directly comparable across runs, models, and prompt variants.
 
@@ -64,7 +64,7 @@ Beyond one-off testing, the deterministic scoring output is a **reward signal**.
 ### Option A: Full integration (Docker)
 
 ```bash
-cd trajectory-sandbox
+cd clawbench
 pip install -r requirements.txt
 
 # 1. Setup a scenario
@@ -87,7 +87,7 @@ Dashboard: `http://localhost:18790/?token=sandbox-token-12345`
 ```bash
 # Start the mock server
 FIXTURES_PATH=./fixtures SCENARIO=client_escalation \
-  python -m trajectory_sandbox.mock_tools.server
+  python -m clawbench.mock_tools.server
 
 # In another terminal — hit it directly
 curl -s -X POST http://localhost:3001/tools/exec \
@@ -313,7 +313,7 @@ Start the mock server, then run HTTP tests against it.
 ```bash
 # Terminal 1
 FIXTURES_PATH=./fixtures SCENARIO=client_escalation \
-  python -m trajectory_sandbox.mock_tools.server
+  python -m clawbench.mock_tools.server
 
 # Terminal 2
 python scripts/test_mock_tools.py
@@ -344,7 +344,7 @@ python scripts/run_episode.py --scenario client_escalation  # live episode
 
 ## CI Integration
 
-Add trajectory evals to your CI pipeline to catch regressions on every AGENTS.md change:
+Add ClawBench evals to your CI pipeline to catch regressions on every AGENTS.md change:
 
 ```yaml
 # .github/workflows/agent-evals.yml
@@ -370,7 +370,7 @@ jobs:
       - name: Mock server tests
         run: |
           FIXTURES_PATH=./fixtures SCENARIO=client_escalation \
-            python -m trajectory_sandbox.mock_tools.server &
+            python -m clawbench.mock_tools.server &
           sleep 2
           python scripts/test_mock_tools.py
 ```
@@ -417,7 +417,7 @@ curl -s -X POST http://localhost:3001/tools/slack \
 ## Project Structure
 
 ```
-trajectory-sandbox/
+clawbench/
 ├── scenarios/                  # Scenario definitions (YAML)
 │   ├── client_escalation.yaml
 │   ├── morning_brief.yaml
@@ -435,7 +435,7 @@ trajectory-sandbox/
 │       ├── USER.md
 │       ├── AGENTS.md.baseline
 │       └── AGENTS.md.optimized
-├── trajectory_sandbox/
+├── clawbench/
 │   ├── mock_tools/server.py    # FastAPI mock server
 │   └── scoring.py              # Regex-based scoring engine
 ├── scripts/
@@ -472,10 +472,10 @@ trajectory-sandbox/
 ```bash
 # Clone both repos
 git clone https://github.com/trajectoryRL/openclaw.git
-git clone https://github.com/trajectoryRL/trajectory-sandbox.git
+git clone https://github.com/trajectoryRL/clawbench.git
 
 # Install Python dependencies
-cd trajectory-sandbox
+cd clawbench
 pip install -r requirements.txt
 
 # Docker (for full integration)
@@ -507,7 +507,7 @@ Key differentiators:
 
 ## Beyond Testing: Optimization & Fine-Tuning
 
-Trajectory Evals isn't just a test harness — it's an **optimization environment**. The deterministic scoring output is a reward signal you can build on.
+ClawBench isn't just a test harness — it's an **optimization environment**. The deterministic scoring output is a reward signal you can build on.
 
 ### RL-style AGENTS.md optimization
 

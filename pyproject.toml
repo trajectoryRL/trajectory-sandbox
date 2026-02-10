@@ -1,5 +1,5 @@
 [project]
-name = "trajectory-sandbox"
+name = "clawbench"
 version = "0.1.0"
 description = "Deterministic, scenario-based evaluation for OpenClaw agents"
 readme = "README.md"
@@ -8,7 +8,7 @@ requires-python = ">=3.11"
 authors = [
     { name = "TrajectoryRL" },
 ]
-keywords = ["openclaw", "agent", "evaluation", "testing", "trajectory", "sandbox", "llm"]
+keywords = ["openclaw", "agent", "evaluation", "testing", "clawbench", "benchmark", "llm"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -33,12 +33,12 @@ dependencies = [
 dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [project.urls]
-Homepage = "https://github.com/trajectoryRL/trajectory-sandbox"
-Repository = "https://github.com/trajectoryRL/trajectory-sandbox"
-Issues = "https://github.com/trajectoryRL/trajectory-sandbox/issues"
+Homepage = "https://github.com/trajectoryRL/clawbench"
+Repository = "https://github.com/trajectoryRL/clawbench"
+Issues = "https://github.com/trajectoryRL/clawbench/issues"
 
 [project.scripts]
-sandbox = "trajectory_sandbox.cli:app"
+clawbench = "clawbench.cli:app"
 
 [build-system]
 requires = ["hatchling"]

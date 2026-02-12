@@ -4,8 +4,8 @@
 |-------------|------------------------|
 | Author      | @ningr                 |
 | Created     | 2026-02-11             |
-| Status      | **Draft**              |
-| Finished    | —                      |
+| Status      | **Done**               |
+| Finished    | 2026-02-12             |
 
 ---
 
@@ -97,11 +97,13 @@ Remove `python scripts/setup_scenario.py` call. Remove pip prerequisite. Just va
 
 Replace `python scripts/setup_scenario.py` call with env var passthrough to docker compose.
 
+#### Removed
+
+- `scripts/setup_scenario.py` — deleted; `run_episode.py` now handles workspace setup and `--list`
+
 #### Unchanged
 
-- `scripts/setup_scenario.py` — kept for backward compat / `run_batch.py` use
 - `scripts/run_batch.py` — manages its own config at runtime
-- `scripts/run_episode.py` — just a client
 - All scenario YAMLs and fixtures
 
 ## File Inventory
@@ -121,7 +123,7 @@ Replace `python scripts/setup_scenario.py` call with env var passthrough to dock
 1. `docker compose up --build` with defaults — init runs, exits 0, services start
 2. `SCENARIO=morning_brief docker compose up --build` — correct AGENTS.md copied
 3. `SCENARIO=inbox_triage VARIANT=baseline docker compose up --build` — baseline variant
-4. `python scripts/setup_scenario.py --list` — still works (backward compat)
+4. `python scripts/run_episode.py --list` — lists scenarios
 5. `./scripts/test_full.sh --quick` — offline tests pass unchanged
 6. `curl http://localhost:3001/health` — mock server healthy with correct scenario
 
@@ -129,12 +131,13 @@ Replace `python scripts/setup_scenario.py` call with env var passthrough to dock
 
 ## Dev Tracker
 
-- [ ] Create `config/openclaw.json`
-- [ ] Create `Dockerfile.init`
-- [ ] Create `scripts/init_workspace.py`
-- [ ] Update `docker-compose.yml`
-- [ ] Update `.env.example`
-- [ ] Update `scripts/run.sh`
-- [ ] Update `scripts/test_full.sh`
-- [ ] End-to-end verification
-- [ ] Update README quick start section
+- [x] Create `config/openclaw.json`
+- [x] Create `Dockerfile.init`
+- [x] Create `scripts/init_workspace.py`
+- [x] Update `docker-compose.yml`
+- [x] Update `.env.example`
+- [x] Update `scripts/run.sh`
+- [x] Update `scripts/test_full.sh`
+- [x] End-to-end verification
+- [x] Update README quick start section
+- [x] Remove `setup_scenario.py` (workspace setup moved into `run_episode.py`)

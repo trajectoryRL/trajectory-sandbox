@@ -231,6 +231,11 @@ def main():
 
     args = parser.parse_args()
 
+    # In --json mode, redirect verbose prints to stderr so only JSON goes to stdout
+    if args.json:
+        _real_stdout = sys.stdout
+        sys.stdout = sys.stderr
+
     if args.list:
         scenarios = sorted(SCENARIOS_DIR.glob("*.yaml"))
         print("Available scenarios:")
@@ -264,11 +269,6 @@ def main():
         WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
     elif scenario_config:
         setup_workspace(scenario_config, args.variant)
-
-    # In --json mode, redirect verbose prints to stderr so only JSON goes to stdout
-    if args.json:
-        _real_stdout = sys.stdout
-        sys.stdout = sys.stderr
 
     if args.wait:
         if not wait_for_services():

@@ -66,21 +66,27 @@ OPENCLAW_URL = os.getenv("OPENCLAW_URL", "http://localhost:18790")
 OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", "sandbox-token-12345")
 MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", "http://localhost:3001")
 
-# All mock tools (allow everything for batch testing)
+# All mock tools — must match the real OpenClaw tool surface (see mock_tools/server.py)
 ALL_MOCK_TOOLS = [
-    "inbox_list", "email_read", "email_draft", "email_send", "email_archive",
-    "calendar_read", "calendar_create", "calendar_update", "calendar_delete",
-    "slack_list_channels", "slack_read_messages", "slack_post_message", "slack_send_dm",
-    "task_list", "task_get", "task_create", "task_update",
-    "doc_list", "doc_read", "doc_create",
-    "contacts_list", "contacts_get",
-    "memory_read", "memory_write",
-    "search_web",
+    "exec",
+    "slack",
+    "memory_search",
+    "memory_get",
+    "web_search",
+    "web_fetch",
+    "read",
+    "session_status",
 ]
 
+# Tools to deny in the generated config (dangerous/unused in sandbox)
 DENY_TOOLS = [
-    "exec", "process", "browser", "canvas", "nodes",
-    "cron", "gateway", "web_search", "web_fetch", "apply_patch",
+    "process",
+    "browser",
+    "canvas",
+    "nodes",
+    "cron",
+    "gateway",
+    "apply_patch",
 ]
 
 
@@ -323,22 +329,22 @@ def dry_run_scenario(scenario: dict, variant: str) -> dict:
             result["fixtures_missing"].append(src)
             result["issues"].append(f"Workspace file missing: {src_path}")
 
-    # Check tool fixtures
+    # Check tool fixtures — map real tool names to expected fixture files
     tools = scenario.get("tools", [])
-    # Map tool names to expected fixture files
     TOOL_FIXTURES = {
-        "inbox_list": "inbox.json", "email_read": "inbox.json",
-        "calendar_read": "calendar.json",
-        "task_list": "tasks.json", "task_get": "tasks.json",
-        "contacts_list": "contacts.json", "contacts_get": "contacts.json",
-        "slack_list_channels": "slack_channels.json",
-        "slack_read_messages": "slack_messages.json",
-        "doc_list": "documents.json", "doc_read": "documents.json",
+        "exec": ["inbox.json", "calendar.json", "tasks.json"],
+        "slack": ["slack_messages.json"],
+        "memory_search": [],  # checked separately below
+        "memory_get": [],
+        "read": [],  # reads workspace files, not fixtures
+        "web_search": ["web_search_results.json"],
+        "web_fetch": ["web_pages.json"],
     }
     checked = set()
     for tool in tools:
-        fixture_name = TOOL_FIXTURES.get(tool)
-        if fixture_name and fixture_name not in checked:
+        for fixture_name in TOOL_FIXTURES.get(tool, []):
+            if fixture_name in checked:
+                continue
             checked.add(fixture_name)
             fixture_path = fixture_dir / fixture_name
             if fixture_path.exists():
@@ -350,7 +356,7 @@ def dry_run_scenario(scenario: dict, variant: str) -> dict:
                 result["fixtures_missing"].append(fixture_name)
 
     # Check memory fixtures
-    if "memory_read" in tools:
+    if "memory_search" in tools or "memory_get" in tools:
         memory_dir = fixture_dir / "memory"
         if memory_dir.exists():
             memory_files = list(memory_dir.iterdir())

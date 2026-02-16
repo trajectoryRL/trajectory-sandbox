@@ -12,15 +12,17 @@ Design principles:
     for human review
 
 Check types:
-  tool_called        — specific tool(s) were called at least once
-  tool_not_called    — specific tool(s) were NOT called
-  tool_arg_contains  — a tool call with args matching a regex pattern exists
-  tool_arg_excludes  — NO tool call has args matching a regex pattern
-  tool_count_max     — total (or per-tool) calls ≤ max
-  tool_count_min     — total (or per-tool) calls ≥ min
-  tool_called_before — tool A appears before tool B in the call log
-  response_contains  — regex found in response text
-  response_excludes  — regex NOT found in response text
+  tool_called             — specific tool(s) were called at least once
+  tool_not_called         — specific tool(s) were NOT called
+  tool_arg_contains       — a tool call with args matching a regex pattern exists
+  tool_arg_excludes       — NO tool call has args matching a regex pattern
+  tool_response_contains  — a tool call with response matching a regex pattern exists
+  tool_count_max          — total (or per-tool) calls ≤ max
+  tool_count_min          — total (or per-tool) calls ≥ min
+  tool_called_before      — tool A appears before tool B in the call log
+  response_contains       — regex found in response text
+  response_excludes       — regex NOT found in response text
+  response_length_max     — response length ≤ max characters
 
 Each check has: id, type, points, category, description, and type-specific params.
 Categories: safety, correctness, efficiency, structure
@@ -102,6 +104,25 @@ def evaluate_check(check: dict, result: dict) -> dict:
         else:
             detail = f"'{pattern[:60]}' in {scope} → not found (good)"
 
+    # --- tool_response_contains: a tool call with matching response exists --
+    elif check_type == "tool_response_contains":
+        tool = check.get("tool")
+        pattern = check["pattern"]
+        flags = re.DOTALL
+        if check.get("case_insensitive", True):
+            flags |= re.IGNORECASE
+        matched = False
+        for tc in tool_calls_raw:
+            if tool and tc.get("tool") != tool:
+                continue
+            resp_str = _tool_call_response_str(tc)
+            if re.search(pattern, resp_str, flags):
+                matched = True
+                break
+        passed = matched
+        scope = f"tool={tool}" if tool else "any tool"
+        detail = f"'{pattern[:60]}' in {scope} response → {'found' if matched else 'NOT FOUND'}"
+
     # --- tool_count_max: call count ≤ max ----------------------------------
     elif check_type == "tool_count_max":
         tool = check.get("tool")
@@ -159,6 +180,12 @@ def evaluate_check(check: dict, result: dict) -> dict:
         passed = match is None
         snippet = response[match.start():match.start()+50] if match else ""
         detail = f"'{pattern[:60]}' → {'not found (good)' if not match else f'FOUND: ...{snippet}...'}"
+
+    # --- response_length_max: response length ≤ max characters --------------
+    elif check_type == "response_length_max":
+        max_val = check["max"]
+        passed = len(response) <= max_val
+        detail = f"length={len(response)} (max {max_val})"
 
     else:
         detail = f"unknown check type: {check_type}"
@@ -328,9 +355,116 @@ def _tool_call_args_str(tc: dict) -> str:
     return str(args)
 
 
+def _tool_call_response_str(tc: dict) -> str:
+    """Flatten a tool call's response into a searchable string."""
+    resp = tc.get("response", "")
+    if isinstance(resp, str):
+        return resp
+    if isinstance(resp, dict):
+        return json.dumps(resp, default=str)
+    return str(resp)
+
+
 def _first_index(lst: list, value: str) -> int | None:
     """Return index of first occurrence, or None."""
     try:
         return lst.index(value)
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Scenario YAML validation
+# ---------------------------------------------------------------------------
+
+KNOWN_TOOLS = {"exec", "slack", "memory_search", "memory_get", "web_search", "web_fetch", "read"}
+
+KNOWN_CHECK_TYPES = {
+    "tool_called", "tool_not_called",
+    "tool_arg_contains", "tool_arg_excludes", "tool_response_contains",
+    "tool_count_max", "tool_count_min", "tool_called_before",
+    "response_contains", "response_excludes", "response_length_max",
+}
+
+KNOWN_CATEGORIES = {"safety", "correctness", "efficiency", "structure"}
+
+# Required fields per check type (beyond the universal ones)
+_TYPE_REQUIRED: dict[str, list[str]] = {
+    "response_contains": ["pattern"],
+    "response_excludes": ["pattern"],
+    "tool_arg_contains": ["pattern"],
+    "tool_arg_excludes": ["pattern"],
+    "tool_response_contains": ["pattern"],
+    "tool_count_max": ["max"],
+    "tool_count_min": ["min"],
+    "tool_called_before": ["before", "after"],
+    "response_length_max": ["max"],
+}
+
+
+def validate_scenario(scenario: dict) -> list[str]:
+    """Validate a scenario dict and return a list of error strings (empty = valid)."""
+    errors: list[str] = []
+
+    # Required top-level fields
+    if not isinstance(scenario.get("name"), str):
+        errors.append("missing or invalid top-level field: 'name' (str)")
+    if not isinstance(scenario.get("tools"), list):
+        errors.append("missing or invalid top-level field: 'tools' (list)")
+    if not isinstance(scenario.get("prompt"), str):
+        errors.append("missing or invalid top-level field: 'prompt' (str)")
+    if not isinstance(scenario.get("variants"), dict):
+        errors.append("missing or invalid top-level field: 'variants' (dict)")
+
+    # Valid tool names
+    for tool in scenario.get("tools", []):
+        if tool not in KNOWN_TOOLS:
+            errors.append(f"unknown tool: '{tool}' (known: {sorted(KNOWN_TOOLS)})")
+
+    # Validate scoring checks
+    checks = scenario.get("scoring", {}).get("checks", [])
+    seen_ids: set[str] = set()
+
+    for i, chk in enumerate(checks):
+        prefix = f"check[{i}]"
+
+        # Required universal fields
+        for field in ("id", "type", "points", "category", "description"):
+            if field not in chk:
+                errors.append(f"{prefix}: missing required field '{field}'")
+
+        chk_id = chk.get("id", f"<unnamed-{i}>")
+        chk_type = chk.get("type", "")
+
+        # Duplicate IDs
+        if chk_id in seen_ids:
+            errors.append(f"{prefix}: duplicate check id '{chk_id}'")
+        seen_ids.add(chk_id)
+
+        # Valid type
+        if chk_type and chk_type not in KNOWN_CHECK_TYPES:
+            errors.append(f"{prefix} ({chk_id}): unknown check type '{chk_type}' (known: {sorted(KNOWN_CHECK_TYPES)})")
+
+        # Valid category
+        cat = chk.get("category")
+        if cat and cat not in KNOWN_CATEGORIES:
+            errors.append(f"{prefix} ({chk_id}): unknown category '{cat}' (known: {sorted(KNOWN_CATEGORIES)})")
+
+        # tool_called / tool_not_called require 'tool' or 'tools'
+        if chk_type in ("tool_called", "tool_not_called"):
+            if "tool" not in chk and "tools" not in chk:
+                errors.append(f"{prefix} ({chk_id}): type '{chk_type}' requires 'tool' or 'tools'")
+
+        # Type-specific required fields
+        for field in _TYPE_REQUIRED.get(chk_type, []):
+            if field not in chk:
+                errors.append(f"{prefix} ({chk_id}): type '{chk_type}' requires '{field}'")
+
+        # Regex syntax validation for pattern fields
+        if "pattern" in chk:
+            try:
+                re.compile(chk["pattern"])
+            except re.error as e:
+                errors.append(f"{prefix} ({chk_id}): invalid regex pattern: {e}")
+
+    return errors

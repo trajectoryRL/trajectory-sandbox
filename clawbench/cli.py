@@ -15,7 +15,7 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from .scoring import score_episode, format_score_summary
+from .scoring import score_episode, format_score_summary, validate_scenario
 
 app = typer.Typer(help="ClawBench - Evaluate AGENTS.md policies")
 console = Console()
@@ -36,7 +36,12 @@ def _load_scenario(name_or_path: str) -> dict:
         console.print(f"Available: {[p.stem for p in sorted(SCENARIOS_DIR.glob('*.yaml'))]}")
         raise typer.Exit(1)
     with open(path) as f:
-        return yaml.safe_load(f)
+        scenario = yaml.safe_load(f)
+    errors = validate_scenario(scenario)
+    if errors:
+        for err in errors:
+            console.print(f"[yellow]  warning:[/yellow] {err}")
+    return scenario
 
 
 @app.command()

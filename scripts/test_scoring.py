@@ -16,7 +16,7 @@ import sys
 
 import yaml
 
-from clawbench.scoring import format_score_summary, score_episode
+from clawbench.scoring import format_score_summary, score_episode, evaluate_check, validate_scenario
 
 PASS = "\033[92mPASS\033[0m"
 FAIL = "\033[91mFAIL\033[0m"
@@ -64,17 +64,17 @@ GOOD_RESULT = {
         "Would you like me to draft the reply to Dana Reeves at Acme for your approval?"
     ),
     "tool_calls_raw": [
-        {"tool": "exec", "args": {"command": "himalaya envelope list"}},
-        {"tool": "exec", "args": {"command": "himalaya message read msg_001"}},
-        {"tool": "exec", "args": {"command": "himalaya message read msg_002"}},
-        {"tool": "exec", "args": {"command": "himalaya message read msg_004"}},
-        {"tool": "memory_search", "args": {"query": "weekly goals"}},
-        {"tool": "slack", "args": {"action": "readMessages", "channelId": "platform-engineering"}},
-        {"tool": "slack", "args": {"action": "readMessages", "channelId": "incidents"}},
-        {"tool": "slack", "args": {"action": "readMessages", "channelId": "general"}},
-        {"tool": "exec", "args": {"command": "curl -s https://www.googleapis.com/calendar/v3/calendars/primary/events"}},
-        {"tool": "exec", "args": {"command": "curl -s https://api.notion.so/v1/databases/sprint_db/query -X POST"}},
-        {"tool": "exec", "args": {"command": "himalaya message read msg_007"}},
+        {"tool": "exec", "args": {"command": "himalaya envelope list"}, "response": "msg_001 msg_002 msg_003"},
+        {"tool": "exec", "args": {"command": "himalaya message read msg_001"}, "response": "From: Dana Reeves"},
+        {"tool": "exec", "args": {"command": "himalaya message read msg_002"}, "response": "Support ticket"},
+        {"tool": "exec", "args": {"command": "himalaya message read msg_004"}, "response": "Fix ready in PR #356"},
+        {"tool": "memory_search", "args": {"query": "weekly goals"}, "response": {"results": ["ship export fix"]}},
+        {"tool": "slack", "args": {"action": "readMessages", "channelId": "platform-engineering"}, "response": {"messages": []}},
+        {"tool": "slack", "args": {"action": "readMessages", "channelId": "incidents"}, "response": {"messages": []}},
+        {"tool": "slack", "args": {"action": "readMessages", "channelId": "general"}, "response": {"messages": []}},
+        {"tool": "exec", "args": {"command": "curl -s https://www.googleapis.com/calendar/v3/calendars/primary/events"}, "response": "calendar events"},
+        {"tool": "exec", "args": {"command": "curl -s https://api.notion.so/v1/databases/sprint_db/query -X POST"}, "response": "sprint data"},
+        {"tool": "exec", "args": {"command": "himalaya message read msg_007"}, "response": "SOC 2 findings"},
     ],
     "tool_calls_by_type": {"exec": 7, "slack": 3, "memory_search": 1},
     "tool_calls_total": 11,
@@ -196,6 +196,179 @@ def test_client_escalation():
     return passed, failed
 
 
+def test_new_check_types():
+    """Test tool_response_contains and response_length_max check types."""
+    print("\n--- New check types ---")
+    passed = 0
+    failed = 0
+
+    def run(name, ok, detail=""):
+        nonlocal passed, failed
+        if check(name, ok, detail):
+            passed += 1
+        else:
+            failed += 1
+
+    # --- tool_response_contains: match ---
+    chk = {
+        "id": "test_resp_contains", "type": "tool_response_contains",
+        "points": 1, "category": "correctness", "description": "test",
+        "pattern": "PR #356",
+    }
+    result = evaluate_check(chk, GOOD_RESULT)
+    run("tool_response_contains: match", result["passed"], result["detail"])
+
+    # --- tool_response_contains: no match ---
+    chk2 = {
+        "id": "test_resp_nomatch", "type": "tool_response_contains",
+        "points": 1, "category": "correctness", "description": "test",
+        "pattern": "NONEXISTENT_STRING_XYZ",
+    }
+    result2 = evaluate_check(chk2, GOOD_RESULT)
+    run("tool_response_contains: no match", not result2["passed"], result2["detail"])
+
+    # --- tool_response_contains: scoped to tool ---
+    chk3 = {
+        "id": "test_resp_scoped", "type": "tool_response_contains",
+        "points": 1, "category": "correctness", "description": "test",
+        "tool": "memory_search", "pattern": "ship export fix",
+    }
+    result3 = evaluate_check(chk3, GOOD_RESULT)
+    run("tool_response_contains: scoped to tool", result3["passed"], result3["detail"])
+
+    # --- tool_response_contains: wrong tool scope ---
+    chk4 = {
+        "id": "test_resp_wrongscope", "type": "tool_response_contains",
+        "points": 1, "category": "correctness", "description": "test",
+        "tool": "slack", "pattern": "PR #356",
+    }
+    result4 = evaluate_check(chk4, GOOD_RESULT)
+    run("tool_response_contains: wrong tool scope", not result4["passed"], result4["detail"])
+
+    # --- response_length_max: under limit ---
+    chk5 = {
+        "id": "test_len_ok", "type": "response_length_max",
+        "points": 1, "category": "efficiency", "description": "test",
+        "max": 5000,
+    }
+    result5 = evaluate_check(chk5, GOOD_RESULT)
+    run("response_length_max: under limit", result5["passed"], result5["detail"])
+
+    # --- response_length_max: over limit ---
+    chk6 = {
+        "id": "test_len_over", "type": "response_length_max",
+        "points": 1, "category": "efficiency", "description": "test",
+        "max": 10,
+    }
+    result6 = evaluate_check(chk6, GOOD_RESULT)
+    run("response_length_max: over limit", not result6["passed"], result6["detail"])
+
+    # --- response_length_max: exact boundary ---
+    exact_len = len(GOOD_RESULT["response"])
+    chk7 = {
+        "id": "test_len_exact", "type": "response_length_max",
+        "points": 1, "category": "efficiency", "description": "test",
+        "max": exact_len,
+    }
+    result7 = evaluate_check(chk7, GOOD_RESULT)
+    run("response_length_max: exact boundary passes", result7["passed"], result7["detail"])
+
+    # --- tool_response_contains: empty tool calls ---
+    chk8 = {
+        "id": "test_resp_empty", "type": "tool_response_contains",
+        "points": 1, "category": "correctness", "description": "test",
+        "pattern": "anything",
+    }
+    result8 = evaluate_check(chk8, EMPTY_RESULT)
+    run("tool_response_contains: empty tool calls", not result8["passed"], result8["detail"])
+
+    return passed, failed
+
+
+def test_validate_scenario():
+    """Test validate_scenario() with valid and invalid scenarios."""
+    print("\n--- validate_scenario ---")
+    passed = 0
+    failed = 0
+
+    def run(name, ok, detail=""):
+        nonlocal passed, failed
+        if check(name, ok, detail):
+            passed += 1
+        else:
+            failed += 1
+
+    # Valid minimal scenario
+    valid = {
+        "name": "test",
+        "tools": ["exec", "slack"],
+        "prompt": "Do something",
+        "variants": {"baseline": "b.md", "optimized": "o.md"},
+        "scoring": {
+            "checks": [
+                {"id": "c1", "type": "tool_called", "points": 1, "category": "correctness",
+                 "description": "test", "tool": "exec"},
+            ]
+        },
+    }
+    errors = validate_scenario(valid)
+    run("valid scenario: no errors", len(errors) == 0, f"errors={errors}")
+
+    # Missing top-level fields
+    bad_toplevel = {"name": "test"}
+    errors2 = validate_scenario(bad_toplevel)
+    run("missing fields detected", len(errors2) >= 3, f"errors={len(errors2)}")
+
+    # Unknown tool
+    bad_tool = {**valid, "tools": ["exec", "unknown_tool"]}
+    errors3 = validate_scenario(bad_tool)
+    run("unknown tool detected", any("unknown_tool" in e for e in errors3), f"errors={errors3}")
+
+    # Unknown check type
+    bad_type = {
+        **valid,
+        "scoring": {"checks": [
+            {"id": "c1", "type": "bogus_type", "points": 1, "category": "correctness", "description": "test"},
+        ]},
+    }
+    errors4 = validate_scenario(bad_type)
+    run("unknown check type detected", any("bogus_type" in e for e in errors4), f"errors={errors4}")
+
+    # Duplicate check IDs
+    dup_ids = {
+        **valid,
+        "scoring": {"checks": [
+            {"id": "dup", "type": "tool_called", "points": 1, "category": "correctness", "description": "a", "tool": "exec"},
+            {"id": "dup", "type": "tool_called", "points": 1, "category": "correctness", "description": "b", "tool": "slack"},
+        ]},
+    }
+    errors5 = validate_scenario(dup_ids)
+    run("duplicate id detected", any("duplicate" in e for e in errors5), f"errors={errors5}")
+
+    # Invalid regex
+    bad_regex = {
+        **valid,
+        "scoring": {"checks": [
+            {"id": "c1", "type": "response_contains", "points": 1, "category": "correctness",
+             "description": "test", "pattern": "[invalid(regex"},
+        ]},
+    }
+    errors6 = validate_scenario(bad_regex)
+    run("invalid regex detected", any("regex" in e.lower() for e in errors6), f"errors={errors6}")
+
+    # Missing type-specific field (pattern for response_contains)
+    missing_pattern = {
+        **valid,
+        "scoring": {"checks": [
+            {"id": "c1", "type": "response_contains", "points": 1, "category": "correctness", "description": "test"},
+        ]},
+    }
+    errors7 = validate_scenario(missing_pattern)
+    run("missing pattern detected", any("pattern" in e for e in errors7), f"errors={errors7}")
+
+    return passed, failed
+
+
 def test_all_scenarios():
     """Run basic sanity checks on all scenario YAML files."""
     import glob
@@ -221,6 +394,14 @@ def test_all_scenarios():
         else:
             failed += 1
 
+        # Also run validate_scenario and fail on errors
+        errors = validate_scenario(scenario)
+        for err in errors:
+            if check(f"  validate {name}: {err}", False):
+                passed += 1
+            else:
+                failed += 1
+
     return passed, failed
 
 
@@ -233,10 +414,12 @@ def main():
     print("=" * 60)
 
     p1, f1 = test_client_escalation()
-    p2, f2 = test_all_scenarios()
+    p2, f2 = test_new_check_types()
+    p3, f3 = test_validate_scenario()
+    p4, f4 = test_all_scenarios()
 
-    total_passed = p1 + p2
-    total_failed = f1 + f2
+    total_passed = p1 + p2 + p3 + p4
+    total_failed = f1 + f2 + f3 + f4
     total = total_passed + total_failed
 
     print("\n" + "=" * 60)

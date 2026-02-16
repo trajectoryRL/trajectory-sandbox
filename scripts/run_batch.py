@@ -35,19 +35,21 @@ Results appear in:
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
-import yaml
 
 # Add project root to path so we can import the scoring module
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from clawbench.scoring import score_episode, format_score_summary, format_score_markdown
+from clawbench.runner import (
+    DEFAULT_OPENCLAW_URL, DEFAULT_OPENCLAW_TOKEN, DEFAULT_MOCK_TOOLS_URL,
+    wait_for_services, send_message, get_tool_calls, get_all_requests,
+    reset_scenario, setup_workspace, load_all_scenarios,
+)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -62,9 +64,9 @@ RESULTS_DIR = SANDBOX_DIR / "results"
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-OPENCLAW_URL = os.getenv("OPENCLAW_URL", "http://localhost:18790")
-OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", "sandbox-token-12345")
-MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", "http://localhost:3001")
+OPENCLAW_URL = os.getenv("OPENCLAW_URL", DEFAULT_OPENCLAW_URL)
+OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", DEFAULT_OPENCLAW_TOKEN)
+MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", DEFAULT_MOCK_TOOLS_URL)
 CLAWBENCH_MODEL = os.getenv("CLAWBENCH_MODEL", "anthropic/claude-sonnet-4-6")
 
 # All mock tools — must match the real OpenClaw tool surface (see mock_tools/server.py)
@@ -147,145 +149,6 @@ def stop_services():
         ["docker", "compose", "down"],
         cwd=SANDBOX_DIR, check=True,
     )
-
-
-def wait_for_services(timeout: int = 120) -> bool:
-    print("Waiting for services...")
-    start = time.time()
-    mock_ready = False
-    openclaw_ready = False
-
-    while time.time() - start < timeout:
-        # Check mock tools
-        if not mock_ready:
-            try:
-                r = httpx.get(f"{MOCK_TOOLS_URL}/health", timeout=3)
-                if r.status_code == 200:
-                    health = r.json()
-                    print(f"  Mock tools: OK ({health.get('tools_available', '?')} tools)")
-                    mock_ready = True
-            except httpx.RequestError:
-                pass
-
-        # Check OpenClaw (try the health or just a connection)
-        if mock_ready and not openclaw_ready:
-            try:
-                r = httpx.get(f"{OPENCLAW_URL}/health", timeout=3)
-                openclaw_ready = True
-                print("  OpenClaw: OK")
-            except httpx.RequestError:
-                try:
-                    # Some versions don't have /health — try chat endpoint
-                    r = httpx.get(OPENCLAW_URL, timeout=3)
-                    openclaw_ready = True
-                    print("  OpenClaw: OK (responded)")
-                except httpx.RequestError:
-                    pass
-
-        if mock_ready and openclaw_ready:
-            return True
-
-        elapsed = int(time.time() - start)
-        if elapsed % 10 == 0 and elapsed > 0:
-            print(f"  Still waiting... ({elapsed}s)")
-        time.sleep(2)
-
-    print(f"  TIMEOUT after {timeout}s")
-    return False
-
-
-# ---------------------------------------------------------------------------
-# Scenario helpers
-# ---------------------------------------------------------------------------
-def load_all_scenarios() -> list[dict]:
-    """Load all scenario YAML configs, sorted by name."""
-    scenarios = []
-    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
-        with open(path) as f:
-            s = yaml.safe_load(f)
-        s["_path"] = path
-        scenarios.append(s)
-    return scenarios
-
-
-def setup_workspace(scenario: dict, variant: str) -> bool:
-    """Copy AGENTS.md variant and workspace files for a scenario."""
-    name = scenario["name"]
-    fixture_dir = FIXTURES_DIR / name
-    variants = scenario.get("variants", {})
-
-    if variant not in variants:
-        print(f"  WARNING: variant '{variant}' not found in {name}")
-        return False
-
-    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Copy AGENTS.md variant
-    src = fixture_dir / variants[variant]
-    if src.exists():
-        shutil.copy2(src, WORKSPACE_DIR / "AGENTS.md")
-    else:
-        print(f"  WARNING: {src} not found")
-        return False
-
-    # Copy workspace files
-    for dest_name, src_name in scenario.get("workspace", {}).items():
-        src = fixture_dir / src_name
-        if src.exists():
-            shutil.copy2(src, WORKSPACE_DIR / dest_name)
-
-    return True
-
-
-def reset_mock_scenario(scenario_name: str) -> bool:
-    """Tell the mock server to switch fixture directory."""
-    try:
-        r = httpx.post(f"{MOCK_TOOLS_URL}/set_scenario/{scenario_name}", timeout=5)
-        return r.status_code == 200
-    except httpx.RequestError:
-        return False
-
-
-def send_message(message: str) -> dict:
-    """Send a message to OpenClaw and return the raw response."""
-    url = f"{OPENCLAW_URL}/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENCLAW_TOKEN}",
-    }
-    payload = {
-        "model": CLAWBENCH_MODEL,
-        "messages": [{"role": "user", "content": message}],
-        "stream": False,
-    }
-
-    try:
-        response = httpx.post(url, headers=headers, json=payload, timeout=180)
-        if response.status_code != 200:
-            return {"error": response.text, "status": response.status_code}
-        return response.json()
-    except httpx.RequestError as e:
-        return {"error": str(e)}
-
-
-def get_tool_calls() -> list:
-    try:
-        r = httpx.get(f"{MOCK_TOOLS_URL}/tool_calls", timeout=5)
-        if r.status_code == 200:
-            return r.json().get("calls", [])
-    except httpx.RequestError:
-        pass
-    return []
-
-
-def get_all_requests() -> dict:
-    try:
-        r = httpx.get(f"{MOCK_TOOLS_URL}/all_requests", timeout=5)
-        if r.status_code == 200:
-            return r.json()
-    except httpx.RequestError:
-        pass
-    return {"requests": [], "summary": {"total": 0, "success": 0, "failed": 0}}
 
 
 # ---------------------------------------------------------------------------
@@ -386,10 +249,10 @@ def run_single(scenario: dict, variant: str) -> dict:
     print(f"{'='*60}")
 
     # Setup
-    if not setup_workspace(scenario, variant):
+    if not setup_workspace(scenario, variant, FIXTURES_DIR, WORKSPACE_DIR):
         return {"scenario": name, "variant": variant, "status": "error", "error": "workspace setup failed"}
 
-    if not reset_mock_scenario(name):
+    if not reset_scenario(MOCK_TOOLS_URL, name):
         return {"scenario": name, "variant": variant, "status": "error", "error": "mock server reset failed"}
 
     # Small delay for workspace file to be visible
@@ -397,12 +260,12 @@ def run_single(scenario: dict, variant: str) -> dict:
 
     # Send message
     t0 = time.time()
-    raw_response = send_message(prompt)
+    raw_response = send_message(OPENCLAW_URL, OPENCLAW_TOKEN, prompt)
     elapsed = time.time() - t0
 
     # Collect tool data
-    tool_calls = get_tool_calls()
-    all_reqs = get_all_requests()
+    tool_calls = get_tool_calls(MOCK_TOOLS_URL)
+    all_reqs = get_all_requests(MOCK_TOOLS_URL)
 
     # Extract response
     assistant_message = ""
@@ -640,7 +503,7 @@ Examples:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     # Load scenarios
-    scenarios = load_all_scenarios()
+    scenarios = load_all_scenarios(SCENARIOS_DIR)
     if not scenarios:
         print("ERROR: No scenarios found in scenarios/")
         sys.exit(1)
@@ -728,7 +591,7 @@ Examples:
 
     # Wait for services
     if args.wait or args.start:
-        if not wait_for_services(timeout=args.timeout):
+        if not wait_for_services(MOCK_TOOLS_URL, OPENCLAW_URL, timeout=args.timeout):
             print("ERROR: Services not ready. Is docker compose running?")
             if args.start:
                 stop_services()

@@ -18,16 +18,19 @@ import os
 import re
 import shutil
 import sys
-import time
 from collections import Counter
 from pathlib import Path
 
-import httpx
 import yaml
 
 # Allow imports from the clawbench package
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from clawbench.scoring import score_episode
+from clawbench.runner import (
+    DEFAULT_OPENCLAW_URL, DEFAULT_OPENCLAW_TOKEN, DEFAULT_MOCK_TOOLS_URL,
+    wait_for_services, send_message, get_tool_calls, get_all_requests,
+    reset_scenario, setup_workspace, load_scenario,
+)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -40,136 +43,15 @@ WORKSPACE_DIR = SANDBOX_DIR / "workspace"
 # ---------------------------------------------------------------------------
 # Configuration (env vars with defaults)
 # ---------------------------------------------------------------------------
-OPENCLAW_URL = os.getenv("OPENCLAW_URL", "http://localhost:18790")
-OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", "sandbox-token-12345")
-MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", "http://localhost:3001")
+OPENCLAW_URL = os.getenv("OPENCLAW_URL", DEFAULT_OPENCLAW_URL)
+OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", DEFAULT_OPENCLAW_TOKEN)
+MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", DEFAULT_MOCK_TOOLS_URL)
 CLAWBENCH_MODEL = os.getenv("CLAWBENCH_MODEL", "anthropic/claude-sonnet-4-6")
-
-
-def load_scenario(name: str) -> dict | None:
-    """Load scenario YAML config. Returns None if not found."""
-    path = SCENARIOS_DIR / f"{name}.yaml"
-    if not path.exists():
-        return None
-    with open(path) as f:
-        return yaml.safe_load(f)
-
-
-def wait_for_services(timeout: int = 60) -> bool:
-    """Wait for OpenClaw and mock-tools to be ready."""
-    print("Waiting for services...")
-    start = time.time()
-    mock_ready = False
-    openclaw_ready = False
-
-    while time.time() - start < timeout:
-        if not mock_ready:
-            try:
-                r = httpx.get(f"{MOCK_TOOLS_URL}/health", timeout=2)
-                if r.status_code == 200:
-                    health = r.json()
-                    print(f"  Mock tools: OK ({health.get('tools_available', '?')} tools, scenario={health.get('scenario', '?')})")
-                    mock_ready = True
-            except httpx.RequestError:
-                pass
-
-        if mock_ready and not openclaw_ready:
-            try:
-                r = httpx.get(f"{OPENCLAW_URL}/health", timeout=2)
-                if r.status_code == 200:
-                    print("  OpenClaw: OK")
-                    openclaw_ready = True
-            except httpx.RequestError:
-                pass
-
-        if mock_ready and openclaw_ready:
-            return True
-
-        elapsed = int(time.time() - start)
-        if elapsed > 0 and elapsed % 10 == 0:
-            status = []
-            if not mock_ready:
-                status.append("mock-tools")
-            if not openclaw_ready:
-                status.append("openclaw")
-            print(f"  Still waiting for {', '.join(status)}... ({elapsed}s)")
-
-        time.sleep(1)
-
-    if not mock_ready:
-        print("  TIMEOUT: mock-tools not ready")
-    if not openclaw_ready:
-        print("  TIMEOUT: OpenClaw not ready")
-    return False
-
-
-def send_message(message: str) -> dict:
-    """Send a message to OpenClaw via OpenAI-compatible API."""
-    url = f"{OPENCLAW_URL}/v1/chat/completions"
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENCLAW_TOKEN}",
-    }
-
-    payload = {
-        "model": CLAWBENCH_MODEL,
-        "messages": [{"role": "user", "content": message}],
-        "stream": False,
-    }
-
-    print(f"\nSending message to OpenClaw:")
-    print(f"  URL: {url}")
-    print(f"  Message: {message[:100]}...")
-
-    try:
-        response = httpx.post(url, headers=headers, json=payload, timeout=120)
-
-        if response.status_code != 200:
-            print(f"  Error: {response.status_code}")
-            print(f"  Body: {response.text[:500]}")
-            return {"error": response.text, "status": response.status_code}
-
-        return response.json()
-
-    except httpx.RequestError as e:
-        print(f"  Request error: {e}")
-        return {"error": str(e)}
-
-
-def get_tool_calls() -> list:
-    """Get successful tool calls from mock-tools server."""
-    try:
-        response = httpx.get(f"{MOCK_TOOLS_URL}/tool_calls", timeout=5)
-        if response.status_code == 200:
-            return response.json().get("calls", [])
-    except httpx.RequestError:
-        pass
-    return []
-
-
-def get_all_requests() -> dict:
-    """Get ALL requests (including failures) from mock-tools server."""
-    try:
-        response = httpx.get(f"{MOCK_TOOLS_URL}/all_requests", timeout=5)
-        if response.status_code == 200:
-            return response.json()
-    except httpx.RequestError:
-        pass
-    return {"requests": [], "summary": {"total": 0, "success": 0, "failed": 0}}
-
-
-def reset_scenario(scenario: str) -> bool:
-    """Reset mock-tools to a specific scenario."""
-    try:
-        response = httpx.post(f"{MOCK_TOOLS_URL}/set_scenario/{scenario}", timeout=5)
-        return response.status_code == 200
-    except httpx.RequestError:
-        return False
 
 
 def set_mock_user_context(user_context: dict) -> bool:
     """Send user context to mock server for runtime {{PLACEHOLDER}} substitution."""
+    import httpx
     try:
         response = httpx.post(
             f"{MOCK_TOOLS_URL}/set_user_context",
@@ -227,12 +109,12 @@ def resolve_user_context(scenario_config: dict | None, overrides: dict | None) -
     return defaults
 
 
-def setup_workspace(
+def setup_workspace_with_templates(
     scenario_config: dict,
     variant: str,
     user_context: dict | None = None,
 ) -> bool:
-    """Copy AGENTS.md variant and workspace files for the scenario.
+    """Copy AGENTS.md variant and workspace files with template substitution.
 
     Workspace files containing {{PLACEHOLDER}} markers are filled using
     user_context (merged from scenario defaults + caller overrides).
@@ -286,7 +168,7 @@ def run_episode(
 
     # Reset scenario
     print(f"\nResetting to scenario: {scenario}")
-    if not reset_scenario(scenario):
+    if not reset_scenario(MOCK_TOOLS_URL, scenario):
         print("  Warning: Could not reset scenario")
 
     # Push user context to mock server for runtime template substitution
@@ -297,11 +179,14 @@ def run_episode(
             print("  Warning: Could not set user context on mock server")
 
     # Send message
-    response = send_message(message)
+    print(f"\nSending message to OpenClaw:")
+    print(f"  URL: {OPENCLAW_URL}/v1/chat/completions")
+    print(f"  Message: {message[:100]}...")
+    response = send_message(OPENCLAW_URL, OPENCLAW_TOKEN, message)
 
     # Get tool calls
-    tool_calls = get_tool_calls()
-    all_reqs = get_all_requests()
+    tool_calls = get_tool_calls(MOCK_TOOLS_URL)
+    all_reqs = get_all_requests(MOCK_TOOLS_URL)
 
     # Extract assistant response
     assistant_message = ""
@@ -375,7 +260,7 @@ def main():
         return
 
     # Load scenario config for default prompt
-    scenario_config = load_scenario(args.scenario)
+    scenario_config = load_scenario(args.scenario, SCENARIOS_DIR)
     if scenario_config is None:
         print(f"WARNING: No scenario config found for '{args.scenario}' — using defaults")
         default_prompt = "Review my inbox and draft replies for urgent emails."
@@ -427,10 +312,10 @@ def main():
                     elif src.exists():
                         shutil.copy2(src, dest)
     elif scenario_config:
-        setup_workspace(scenario_config, args.variant, user_context)
+        setup_workspace_with_templates(scenario_config, args.variant, user_context)
 
     if args.wait:
-        if not wait_for_services():
+        if not wait_for_services(MOCK_TOOLS_URL, OPENCLAW_URL):
             print("ERROR: Services not ready")
             sys.exit(1)
 

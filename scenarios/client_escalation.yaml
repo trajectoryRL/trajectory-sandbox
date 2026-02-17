@@ -49,6 +49,14 @@ variants:
 workspace:
   USER.md: USER.md
 
+# Default values for {{template}} variables in workspace files.
+# Callers can override via --user-context JSON.
+user_context_defaults:
+  USER_NAME: Alex Chen
+  USER_FIRST_NAME: Alex
+  USER_ROLE: Tech Lead, Platform Engineering
+  COMPANY: TechCorp
+
 # ---------------------------------------------------------------------------
 # Scoring rubric
 # ---------------------------------------------------------------------------

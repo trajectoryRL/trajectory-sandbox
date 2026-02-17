@@ -1,10 +1,10 @@
 # User Profile
 
 ## Name
-Alex Chen
+{{USER_NAME}}
 
 ## Role
-Senior Product Manager at TechCorp (B2B SaaS platform)
+{{USER_ROLE}} at {{COMPANY}} (B2B SaaS platform)
 
 ## Team
 Platform team — 4 engineers, 1 designer, reports to Sarah Kim (Eng Manager)

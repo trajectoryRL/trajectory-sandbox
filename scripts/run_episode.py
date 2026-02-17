@@ -9,11 +9,13 @@ Usage:
     python scripts/run_episode.py --scenario inbox_triage
     python scripts/run_episode.py --scenario inbox_triage --message "Custom prompt"
     python scripts/run_episode.py --wait --scenario inbox_triage
+    python scripts/run_episode.py --scenario inbox_triage --user-context '{"USER_NAME":"Jordan Rivera","COMPANY":"Meridian Tech"}'
 """
 
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -166,8 +168,80 @@ def reset_scenario(scenario: str) -> bool:
         return False
 
 
-def setup_workspace(scenario_config: dict, variant: str) -> bool:
-    """Copy AGENTS.md variant and workspace files for the scenario."""
+def set_mock_user_context(user_context: dict) -> bool:
+    """Send user context to mock server for runtime {{PLACEHOLDER}} substitution."""
+    try:
+        response = httpx.post(
+            f"{MOCK_TOOLS_URL}/set_user_context",
+            json=user_context,
+            timeout=5,
+        )
+        return response.status_code == 200
+    except httpx.RequestError:
+        return False
+
+
+def fill_templates(content: str, context: dict) -> str:
+    """Replace {{KEY}} placeholders in content with values from context.
+
+    Auto-derives USER_FIRST_NAME from USER_NAME if not explicitly set.
+
+    Args:
+        content: Template string with {{PLACEHOLDER}} markers
+        context: Dict of placeholder_name -> value
+
+    Returns:
+        Content with all known placeholders replaced
+    """
+    if not context:
+        return content
+
+    # Auto-derive first name if not provided
+    ctx = dict(context)
+    if "USER_FIRST_NAME" not in ctx and "USER_NAME" in ctx:
+        ctx["USER_FIRST_NAME"] = ctx["USER_NAME"].split()[0]
+
+    # Replace all {{KEY}} patterns with corresponding values
+    def replacer(match):
+        key = match.group(1)
+        return ctx.get(key, match.group(0))  # Leave unmatched placeholders as-is
+
+    return re.sub(r"\{\{(\w+)\}\}", replacer, content)
+
+
+def resolve_user_context(scenario_config: dict | None, overrides: dict | None) -> dict:
+    """Merge scenario defaults with caller overrides to produce template context.
+
+    Args:
+        scenario_config: Loaded scenario YAML (may contain user_context_defaults)
+        overrides: Caller-provided overrides (from --user-context)
+
+    Returns:
+        Merged context dict ready for fill_templates()
+    """
+    defaults = {}
+    if scenario_config:
+        defaults = dict(scenario_config.get("user_context_defaults", {}))
+    if overrides:
+        defaults.update(overrides)
+    return defaults
+
+
+def setup_workspace(
+    scenario_config: dict,
+    variant: str,
+    user_context: dict | None = None,
+) -> bool:
+    """Copy AGENTS.md variant and workspace files for the scenario.
+
+    Workspace files containing {{PLACEHOLDER}} markers are filled using
+    user_context (merged from scenario defaults + caller overrides).
+
+    Args:
+        scenario_config: Loaded scenario YAML
+        variant: AGENTS.md variant name (e.g., "optimized")
+        user_context: Template context dict for {{PLACEHOLDER}} substitution
+    """
     scenario_name = scenario_config["name"]
     fixture_dir = FIXTURES_DIR / scenario_name
 
@@ -186,21 +260,41 @@ def setup_workspace(scenario_config: dict, variant: str) -> bool:
         print(f"  WARNING: {agents_src} not found")
         return False
 
+    ctx = resolve_user_context(scenario_config, user_context)
+
     for dest_name, src_name in scenario_config.get("workspace", {}).items():
         src = fixture_dir / src_name
         if src.exists():
-            shutil.copy2(src, WORKSPACE_DIR / dest_name)
+            if ctx and dest_name.endswith(".md"):
+                # Template-substitute markdown workspace files
+                content = src.read_text()
+                content = fill_templates(content, ctx)
+                (WORKSPACE_DIR / dest_name).write_text(content)
+                print(f"  Templated {src_name} -> workspace/{dest_name}")
+            else:
+                shutil.copy2(src, WORKSPACE_DIR / dest_name)
 
     return True
 
 
-def run_episode(message: str, scenario: str = "inbox_triage") -> dict:
+def run_episode(
+    message: str,
+    scenario: str = "inbox_triage",
+    user_context: dict | None = None,
+) -> dict:
     """Run a complete episode and return results."""
 
     # Reset scenario
     print(f"\nResetting to scenario: {scenario}")
     if not reset_scenario(scenario):
         print("  Warning: Could not reset scenario")
+
+    # Push user context to mock server for runtime template substitution
+    if user_context:
+        if set_mock_user_context(user_context):
+            print(f"  Set user context: {user_context.get('USER_NAME', '?')} at {user_context.get('COMPANY', '?')}")
+        else:
+            print("  Warning: Could not set user context on mock server")
 
     # Send message
     response = send_message(message)
@@ -256,6 +350,9 @@ def main():
                         help="Output scored JSON to stdout (for validator integration)")
     parser.add_argument("--workspace", type=str,
                         help="Custom workspace directory (skips default workspace setup)")
+    parser.add_argument("--user-context", type=str, default=None,
+                        help="JSON dict of user identity overrides for {{PLACEHOLDER}} substitution "
+                             "in workspace files (e.g., USER.md). Merges with scenario defaults.")
     parser.add_argument("--list", "-l", action="store_true",
                         help="List available scenarios")
 
@@ -289,24 +386,59 @@ def main():
 
     message = args.message or default_prompt
 
-    # Setup workspace files for this scenario/variant
+    # Parse --user-context JSON if provided
+    user_context = None
+    if args.user_context:
+        try:
+            user_context = json.loads(args.user_context)
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Invalid --user-context JSON: {e}")
+            sys.exit(1)
+
+    # Setup workspace files for this scenario/variant.
     # If --workspace is given, the caller already prepared the workspace (e.g.,
-    # validator wrote the pack's AGENTS.md there), so we skip the default setup
-    # but still point WORKSPACE_DIR at it.
+    # validator wrote the pack's AGENTS.md there), so we skip the default
+    # variant/file setup — but we still template-fill workspace files if
+    # --user-context was provided.
     if args.workspace:
         global WORKSPACE_DIR
         WORKSPACE_DIR = Path(args.workspace)
         WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+
+        # When --workspace + --user-context, template-fill workspace .md files
+        # that weren't written by the caller (e.g., USER.md from fixtures).
+        if user_context and scenario_config:
+            ctx = resolve_user_context(scenario_config, user_context)
+            for dest_name, src_name in scenario_config.get("workspace", {}).items():
+                dest = WORKSPACE_DIR / dest_name
+                if dest.exists() and dest_name.endswith(".md"):
+                    # File already in workspace (maybe from fixture copy) — re-template
+                    content = dest.read_text()
+                    # If it still has {{...}} placeholders, fill them
+                    if "{{" in content:
+                        content = fill_templates(content, ctx)
+                        dest.write_text(content)
+                else:
+                    # Not in workspace yet — copy from fixture and template
+                    src = FIXTURES_DIR / scenario_config["name"] / src_name
+                    if src.exists() and dest_name.endswith(".md"):
+                        content = fill_templates(src.read_text(), ctx)
+                        dest.write_text(content)
+                    elif src.exists():
+                        shutil.copy2(src, dest)
     elif scenario_config:
-        setup_workspace(scenario_config, args.variant)
+        setup_workspace(scenario_config, args.variant, user_context)
 
     if args.wait:
         if not wait_for_services():
             print("ERROR: Services not ready")
             sys.exit(1)
 
+    # Resolve merged user context (defaults + overrides) for the mock server
+    resolved_ctx = resolve_user_context(scenario_config, user_context) if scenario_config else (user_context or {})
+
     # Run episode
-    result = run_episode(message, args.scenario)
+    result = run_episode(message, args.scenario, user_context=resolved_ctx or None)
 
     # Restore stdout for JSON output
     if args.json:

@@ -1,16 +1,16 @@
 # User Profile
 
 ## Name
-Alex Chen
+{{USER_NAME}}
 
 ## Role
-Senior Product Manager at TechCorp (B2B SaaS platform)
+{{USER_ROLE}} at {{COMPANY}} (B2B SaaS platform)
 
 ## Email Style
 - Professional but warm. Not corporate-speak.
 - Keep replies under 100 words unless the topic demands more.
 - Always acknowledge the other person's point before adding yours.
-- Sign off: "Best, Alex" for external, "— Alex" for internal, nothing for quick replies.
+- Sign off: "Best, {{USER_FIRST_NAME}}" for external, "— {{USER_FIRST_NAME}}" for internal, nothing for quick replies.
 
 ## Triage Rules
 1. **CEO / CTO / Manager** — always reply same day

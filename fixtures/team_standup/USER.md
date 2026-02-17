@@ -1,10 +1,10 @@
 # User Profile
 
 ## Name
-Alex Chen
+{{USER_NAME}}
 
 ## Role
-Senior Product Manager, Platform Team at TechCorp
+{{USER_ROLE}}, Platform Team at {{COMPANY}}
 
 ## Standup Preferences
 - I run the standup — I need to know everything BEFORE the meeting

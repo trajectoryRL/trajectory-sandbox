@@ -1,7 +1,7 @@
 # User Profile
 
-**Name:** Alex Chen
-**Role:** Tech Lead, Platform Engineering at TechCorp
+**Name:** {{USER_NAME}}
+**Role:** {{USER_ROLE}} at {{COMPANY}}
 **Reports to:** Sarah Kim (Engineering Manager)
 **Skip-level:** David Park (Director of Engineering)
 

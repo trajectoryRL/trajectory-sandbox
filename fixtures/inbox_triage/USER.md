@@ -1,10 +1,10 @@
 # User Profile
 
 ## Name
-Alex Chen
+{{USER_NAME}}
 
 ## Role
-Product Manager at TechCorp
+{{USER_ROLE}} at {{COMPANY}}
 
 ## Communication Preferences
 - Professional but friendly tone

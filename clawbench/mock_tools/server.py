@@ -44,6 +44,7 @@ logger = logging.getLogger("mock-tools")
 app = FastAPI(title="ClawBench — Mock Tools Server (Corrected Schema)")
 
 FIXTURES_PATH = Path(os.getenv("FIXTURES_PATH", "./fixtures"))
+WORKSPACE_PATH = Path(os.getenv("WORKSPACE_PATH", "./workspace"))
 LOG_PATH = Path(os.getenv("LOG_PATH", "./logs"))
 
 LOG_PATH.mkdir(parents=True, exist_ok=True)
@@ -59,6 +60,7 @@ class ScenarioState:
         self.scenario = scenario
         self.tool_calls: list[dict] = []
         self.all_requests: list[dict] = []
+        self.user_context: dict[str, str] = {}
         self._lock = asyncio.Lock()
         self._log_lock = asyncio.Lock()
 
@@ -67,7 +69,16 @@ class ScenarioState:
             self.scenario = scenario
             self.tool_calls.clear()
             self.all_requests.clear()
+            self.user_context.clear()
             logger.info("Scenario reset to: %s", scenario)
+
+    async def set_user_context(self, ctx: dict[str, str]):
+        async with self._lock:
+            self.user_context = dict(ctx)
+            # Auto-derive first name if not provided
+            if "USER_FIRST_NAME" not in self.user_context and "USER_NAME" in self.user_context:
+                self.user_context["USER_FIRST_NAME"] = self.user_context["USER_NAME"].split()[0]
+            logger.info("User context set: %s", self.user_context)
 
     async def add_tool_call(self, entry: dict):
         async with self._lock:
@@ -558,19 +569,46 @@ def handle_web_fetch(data: dict, scenario: str) -> dict:
 # Read handler (workspace files)
 # ============================================================================
 
+def _fill_templates(content: str, context: dict) -> str:
+    """Replace {{KEY}} placeholders in content with values from context."""
+    if not context:
+        return content
+
+    def replacer(match):
+        key = match.group(1)
+        return context.get(key, match.group(0))
+
+    return re.sub(r"\{\{(\w+)\}\}", replacer, content)
+
+
 def handle_read(data: dict, scenario: str) -> dict:
-    """Read a workspace file from fixtures."""
+    """Read a file, checking workspace first then fixtures.
+
+    Workspace-first resolution allows the validator to inject epoch-specific
+    files (e.g., USER.md with the epoch persona) that override the default
+    fixture versions.  If user_context is set, {{PLACEHOLDER}} markers in
+    markdown files are filled before returning.
+    """
     req_path = data.get("path", "")
     from_line = data.get("from", 1)
     num_lines = data.get("lines", 2000)
 
-    # Try direct path in fixture dir
-    for candidate in [
+    # Check workspace first (epoch-generated files override fixtures),
+    # then fall back to fixture dir.
+    candidates = [
+        WORKSPACE_PATH / req_path,
+        WORKSPACE_PATH / os.path.basename(req_path),
         FIXTURES_PATH / scenario / req_path,
         FIXTURES_PATH / scenario / os.path.basename(req_path),
-    ]:
+    ]
+    for candidate in candidates:
         if candidate.exists() and candidate.is_file():
             content = candidate.read_text()
+
+            # Template-substitute markdown files when user_context is set
+            if state.user_context and candidate.suffix == ".md":
+                content = _fill_templates(content, state.user_context)
+
             lines = content.split("\n")
             start = max(0, from_line - 1)
             end = start + num_lines
@@ -702,6 +740,17 @@ async def set_scenario(scenario: str):
     """Set the current scenario (switches fixture directory)."""
     await state.reset(scenario)
     return {"scenario": state.scenario}
+
+
+@app.post("/set_user_context")
+async def set_user_context_endpoint(request: Request):
+    """Set user identity context for {{PLACEHOLDER}} substitution in served files.
+
+    Expected JSON body: {"USER_NAME": "Jordan Rivera", "COMPANY": "Meridian Tech", ...}
+    """
+    body = await request.json()
+    await state.set_user_context(body)
+    return {"user_context": state.user_context}
 
 
 @app.get("/tool_calls")

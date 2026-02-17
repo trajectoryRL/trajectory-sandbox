@@ -87,7 +87,7 @@ curl -s -X POST http://localhost:3001/tools/exec \
 
 ## Scenarios
 
-All scenarios share the same universe: **Alex Chen**, Tech Lead at TechCorp, with a realistic team, clients, calendar, and workload.
+All scenarios share the same universe — a tech lead with a realistic team, clients, calendar, and workload. USER.md fixtures use `{{PLACEHOLDER}}` templates (`{{USER_NAME}}`, `{{USER_ROLE}}`, `{{COMPANY}}`) so the user identity can be overridden at runtime via `--user-context`. Defaults: Alex Chen, Product Manager at TechCorp.
 
 | Scenario | Difficulty | Description | Tools | Checks |
 |----------|:----------:|-------------|-------|:------:|
@@ -214,6 +214,14 @@ variants:
 
 workspace:
   USER.md: USER.md
+
+# Default values for {{PLACEHOLDER}} templates in workspace files.
+# Callers can override via --user-context JSON.
+user_context_defaults:
+  USER_NAME: Alex Chen
+  USER_FIRST_NAME: Alex
+  USER_ROLE: Product Manager
+  COMPANY: TechCorp
 
 scoring:
   checks:
@@ -390,6 +398,15 @@ curl -s http://localhost:3001/tool_calls | python -m json.tool
 
 # Switch scenario without restarting (run_episode.py does this automatically)
 curl -s -X POST http://localhost:3001/set_scenario/inbox_triage
+
+# Override user identity (templates in USER.md get filled)
+python scripts/run_episode.py --scenario client_escalation --wait \
+  --user-context '{"USER_NAME":"Jordan Rivera","COMPANY":"Meridian Tech"}'
+
+# Set user context on mock server directly
+curl -s -X POST http://localhost:3001/set_user_context \
+  -H 'Content-Type: application/json' \
+  -d '{"USER_NAME":"Jordan Rivera","COMPANY":"Meridian Tech"}'
 
 # Test a tool manually
 curl -s -X POST http://localhost:3001/tools/slack \

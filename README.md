@@ -337,55 +337,6 @@ python scripts/run_episode.py --scenario client_escalation  # live episode
 
 ---
 
-## CI Integration
-
-Add ClawBench evals to your CI pipeline to catch regressions on every AGENTS.md change:
-
-```yaml
-# .github/workflows/agent-evals.yml
-name: Agent Evals
-on:
-  push:
-    paths: ['fixtures/**/AGENTS.md.*', 'scenarios/*.yaml']
-
-jobs:
-  eval:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install -r requirements.txt
-
-      # Layers 1-2: no Docker, no API key
-      - run: python scripts/test_handlers.py
-      - run: python scripts/test_scoring.py
-
-      # Layer 3: mock server HTTP tests
-      - name: Mock server tests
-        run: |
-          FIXTURES_PATH=./fixtures SCENARIO=client_escalation \
-            python -m clawbench.mock_tools.server &
-          sleep 2
-          python scripts/test_mock_tools.py
-```
-
-For full integration tests (Layer 4 with LLM), run on a schedule or manually:
-
-```yaml
-  eval-full:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          SCENARIO=client_escalation VARIANT=optimized \
-            docker compose up -d --build
-          python scripts/run_episode.py --scenario client_escalation --wait --json
-```
-
----
-
 ## Debug Commands
 
 While Docker is running:
@@ -494,55 +445,7 @@ pip install -r requirements.txt
 
 ## Model Configuration
 
-All ClawBench scripts read the `CLAWBENCH_MODEL` env var. Set it once, everything uses it.
-
-### Cloud (default — Anthropic)
-
-```bash
-# .env
-CLAWBENCH_MODEL=anthropic/claude-sonnet-4-5-20250929
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-### Local LLM (Ollama)
-
-```bash
-# 1. Pull and serve
-ollama pull llama3.3 && ollama serve
-
-# 2. Set model in .env
-CLAWBENCH_MODEL=ollama/llama3.3
-
-# 3. Add Ollama provider to config/openclaw.json.template (after the "agents" block):
-#
-#   "models": {
-#     "providers": {
-#       "ollama": {
-#         "baseUrl": "http://host.docker.internal:11434",
-#         "api": "ollama"
-#       }
-#     }
-#   }
-
-# 4. Run as usual
-docker compose up --build
-```
-
-### Other providers
-
-| Provider | `CLAWBENCH_MODEL` | API key env var |
-|----------|-------------------|-----------------|
-| Anthropic | `anthropic/claude-sonnet-4-5-20250929` | `ANTHROPIC_API_KEY` |
-| OpenAI | `openai/gpt-4o` | `OPENAI_API_KEY` |
-| Ollama (local) | `ollama/llama3.3` | `OLLAMA_API_KEY=ollama-local` |
-| vLLM (local) | `vllm/deepseek-r1` | `VLLM_API_KEY=vllm-local` |
-| LiteLLM | `litellm/claude-opus-4-6` | `LITELLM_API_KEY` |
-
-The model is set in two places automatically:
-1. **API payload** — Python scripts read `CLAWBENCH_MODEL` and send it in `/v1/chat/completions` requests
-2. **OpenClaw config** — The init container generates `config/openclaw.json` from `config/openclaw.json.template`, replacing `${CLAWBENCH_MODEL}` with the env var value
-
-For providers other than Anthropic/OpenAI, you also need to add the provider config to `config/openclaw.json.template` (see [OpenClaw model providers](https://docs.openclaw.ai/concepts/model-providers) for the full schema).
+All ClawBench scripts read the `CLAWBENCH_MODEL` env var. Set it in `.env` — see [`.env.example`](.env.example) for supported providers and examples.
 
 ---
 

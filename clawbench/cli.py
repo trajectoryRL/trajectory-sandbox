@@ -26,7 +26,6 @@ console = Console()
 SANDBOX_DIR = Path(__file__).resolve().parent.parent
 SCENARIOS_DIR = SANDBOX_DIR / "scenarios"
 FIXTURES_DIR = SANDBOX_DIR / "fixtures"
-CLAWBENCH_MODEL = os.getenv("CLAWBENCH_MODEL", "anthropic/claude-sonnet-4-5-20250929")
 
 
 def _load_scenario(name_or_path: str) -> dict:
@@ -76,7 +75,7 @@ def run(
         raise typer.Exit(1)
 
     # Send message
-    raw = send_message(openclaw_url, token, prompt, model=CLAWBENCH_MODEL)
+    raw = send_message(openclaw_url, token, prompt)
     if "error" in raw:
         console.print(f"[red]OpenClaw error:[/red] {raw['error']}")
         raise typer.Exit(1)

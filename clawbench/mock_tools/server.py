@@ -50,6 +50,11 @@ LOG_PATH = Path(os.getenv("LOG_PATH", "./logs"))
 LOG_PATH.mkdir(parents=True, exist_ok=True)
 
 
+def _is_within(path: Path, base: Path) -> bool:
+    """Check that *path* is equal to or inside *base* (blocks path traversal)."""
+    return path == base or str(path).startswith(str(base) + os.sep)
+
+
 # ---------------------------------------------------------------------------
 # Scenario state — replaces module-level globals with a locked container
 # ---------------------------------------------------------------------------
@@ -477,8 +482,7 @@ def handle_memory_get(data: dict, scenario: str) -> dict:
             FIXTURES_PATH / scenario / "memory" / req_path,
         ]:
             resolved = fpath.resolve()
-            # Block path traversal — use trailing sep to avoid prefix false positives
-            if not (resolved == base_dir or str(resolved).startswith(str(base_dir) + os.sep)):
+            if not _is_within(resolved, base_dir):
                 continue
             if not resolved.exists():
                 continue
@@ -615,8 +619,7 @@ def handle_read(data: dict, scenario: str) -> dict:
     ]
     for candidate, base_dir in candidates:
         resolved = candidate.resolve()
-        # Block path traversal — use trailing sep to avoid prefix false positives
-        if not (resolved == base_dir or str(resolved).startswith(str(base_dir) + os.sep)):
+        if not _is_within(resolved, base_dir):
             continue
         if resolved.exists() and resolved.is_file():
             content = resolved.read_text()

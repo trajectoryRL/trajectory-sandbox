@@ -50,6 +50,11 @@ LOG_PATH = Path(os.getenv("LOG_PATH", "./logs"))
 LOG_PATH.mkdir(parents=True, exist_ok=True)
 
 
+def _is_within(path: Path, base: Path) -> bool:
+    """Check that *path* is equal to or inside *base* (blocks path traversal)."""
+    return path == base or str(path).startswith(str(base) + os.sep)
+
+
 # ---------------------------------------------------------------------------
 # Scenario state — replaces module-level globals with a locked container
 # ---------------------------------------------------------------------------
@@ -468,13 +473,20 @@ def handle_memory_get(data: dict, scenario: str) -> dict:
     from_line = data.get("from", 1)
     num_lines = data.get("lines", 100)
 
+    base_dir = (FIXTURES_PATH / scenario).resolve()
+
     try:
-        # Try memory subdirectory first
-        fpath = FIXTURES_PATH / scenario / req_path
-        if not fpath.exists():
-            fpath = FIXTURES_PATH / scenario / "memory" / req_path
-        if fpath.exists():
-            content = fpath.read_text()
+        # Try direct path first, then memory subdirectory
+        for fpath in [
+            FIXTURES_PATH / scenario / req_path,
+            FIXTURES_PATH / scenario / "memory" / req_path,
+        ]:
+            resolved = fpath.resolve()
+            if not _is_within(resolved, base_dir):
+                continue
+            if not resolved.exists():
+                continue
+            content = resolved.read_text()
             lines = content.split("\n")
             start = max(0, from_line - 1)
             end = start + num_lines
@@ -553,14 +565,15 @@ def handle_web_fetch(data: dict, scenario: str) -> dict:
     return {
         "url": url,
         "finalUrl": url,
-        "status": 200,
+        "status": 404,
         "contentType": "text/html",
-        "title": "Mock Page",
+        "title": "Not Found",
         "extractMode": extract_mode,
         "extractor": "mock",
         "truncated": False,
-        "length": 50,
-        "text": f"(Mock content for {url})",
+        "length": 0,
+        "text": "",
+        "error": "Not Found",
         "cached": False,
     }
 
@@ -593,20 +606,26 @@ def handle_read(data: dict, scenario: str) -> dict:
     from_line = data.get("from", 1)
     num_lines = data.get("lines", 2000)
 
+    workspace_base = WORKSPACE_PATH.resolve()
+    fixture_base = (FIXTURES_PATH / scenario).resolve()
+
     # Check workspace first (epoch-generated files override fixtures),
     # then fall back to fixture dir.
     candidates = [
-        WORKSPACE_PATH / req_path,
-        WORKSPACE_PATH / os.path.basename(req_path),
-        FIXTURES_PATH / scenario / req_path,
-        FIXTURES_PATH / scenario / os.path.basename(req_path),
+        (WORKSPACE_PATH / req_path, workspace_base),
+        (WORKSPACE_PATH / os.path.basename(req_path), workspace_base),
+        (FIXTURES_PATH / scenario / req_path, fixture_base),
+        (FIXTURES_PATH / scenario / os.path.basename(req_path), fixture_base),
     ]
-    for candidate in candidates:
-        if candidate.exists() and candidate.is_file():
-            content = candidate.read_text()
+    for candidate, base_dir in candidates:
+        resolved = candidate.resolve()
+        if not _is_within(resolved, base_dir):
+            continue
+        if resolved.exists() and resolved.is_file():
+            content = resolved.read_text()
 
             # Template-substitute markdown files when user_context is set
-            if state.user_context and candidate.suffix == ".md":
+            if state.user_context and resolved.suffix == ".md":
                 content = _fill_templates(content, state.user_context)
 
             lines = content.split("\n")
@@ -714,6 +733,7 @@ async def handle_tool(tool_name: str, request: Request):
         "ts": datetime.now(timezone.utc).isoformat(),
         "tool": tool_name,
         "args": data,
+        "response": result,
         "result_summary": str(result)[:200],
     }
     await state.add_tool_call(entry)

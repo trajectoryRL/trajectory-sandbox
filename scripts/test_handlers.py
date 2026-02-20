@@ -249,17 +249,17 @@ def main():
     run("web_search (count=1)", len(r.get("results", [])) == 1)
 
     r = handle_web_fetch({"url": "https://example.com"}, scenario)
-    run("web_fetch", r.get("status") == 200 and r.get("extractor") == "mock")
+    run("web_fetch (unknown url → 404)", r.get("status") == 404 and r.get("error") == "Not Found")
 
     r = handle_web_fetch({"url": "https://example.com", "extractMode": "text"}, scenario)
-    run("web_fetch (text mode)", r.get("extractMode") == "text")
+    run("web_fetch (text mode, unknown → 404)", r.get("status") == 404 and r.get("extractMode") == "text")
 
     # ── Read ──────────────────────────────────────────────────────
 
     print("\n--- Read handler ---")
 
     r = handle_read({"path": "USER.md"}, scenario)
-    run("read USER.md", "Alex Chen" in r.get("content", ""))
+    run("read USER.md", "User Profile" in r.get("content", ""))
 
     r = handle_read({"path": "nonexistent.txt"}, scenario)
     run("read (missing)", "error" in r or r.get("content") == "")

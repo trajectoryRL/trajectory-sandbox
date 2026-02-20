@@ -20,7 +20,7 @@ import yaml
 DEFAULT_OPENCLAW_URL = "http://localhost:18790"
 DEFAULT_OPENCLAW_TOKEN = "sandbox-token-12345"
 DEFAULT_MOCK_TOOLS_URL = "http://localhost:3001"
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
+DEFAULT_MODEL = "anthropic/claude-sonnet-4-5-20250929"
 
 
 # ---------------------------------------------------------------------------

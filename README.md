@@ -421,7 +421,7 @@ clawbench/
 | `OPENAI_API_KEY` | Yes* | — | OpenAI API key |
 | `OPENCLAW_GATEWAY_TOKEN` | No | `sandbox-token-12345` | Gateway auth token |
 | `OPENCLAW_PORT` | No | `18790` | Host port for OpenClaw |
-| `CLAWBENCH_MODEL` | No | `anthropic/claude-sonnet-4-6` | LLM model (`provider/model`) |
+| `CLAWBENCH_MODEL` | No | `anthropic/claude-sonnet-4-5-20250929` | LLM model (`provider/model`) |
 | `SCENARIO` | No | `client_escalation` | Scenario to run |
 | `VARIANT` | No | `optimized` | AGENTS.md variant (`baseline` or `optimized`) |
 

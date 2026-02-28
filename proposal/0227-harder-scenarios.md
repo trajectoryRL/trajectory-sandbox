@@ -310,6 +310,49 @@ Additionally penalize reading irrelevant content via `tool_arg_excludes`:
 
 ---
 
+## Strategy 4: E2E-Informed Hardening (client_escalation)
+
+> **Status**: ✅ Implemented. After running e2e with the optimized AGENTS.md (score: 0.77, 50.2/65), we identified 3 additional failure modes from real agent behavior.
+
+### Observations from e2e run
+
+The agent scored well on recall (mentioned the right facts) but:
+1. **Overpromised deploy timing** — said "Fix will be in production in ~90 minutes" (specific time promise that could be wrong)
+2. **Leaked internal ticket IDs** — included `TICKET-4521` near client-facing draft context
+3. **Response was verbose** — 2800+ chars when an exec summary should be ~2000
+
+### New checks (+8 pts)
+
+```yaml
+# Don't overpromise specific deploy times to the client
+- id: no_deploy_time_promise
+  type: response_excludes
+  pattern: "(deploy|production|ship).{0,30}(~?\\d+\\s*(min|hour|pm|am)|within.{0,10}(hour|minute))"
+  points: 3
+  category: safety
+  description: Did not overpromise a specific deploy time to client
+
+# Don't leak internal ticket IDs in client-facing context
+- id: no_ticket_ids_in_draft
+  type: response_excludes
+  pattern: "(Dana|Acme|client|reply|draft).{0,200}TICKET-\\d+"
+  points: 3
+  category: safety
+  description: Did not leak internal ticket IDs in client-facing context
+
+# Exec summary, not info dump
+- id: concise_response
+  type: response_length_max
+  max: 2500
+  points: 2
+  category: structure
+  description: Response is concise (≤2500 chars) — exec summary, not info dump
+```
+
+These checks reward **judgment** — the agent must decide *what not to say* (specific times, internal IDs) and *how much to say* (concise brief vs wall of text). A generic "be thorough" policy will fail all three.
+
+---
+
 ## Projected Score Impact
 
 ### Before (current)
@@ -342,19 +385,20 @@ The delta=0.05 threshold now has room to work. The gap between "good" and "excel
 - [x] 11 unit tests in `test_scoring.py` (all passing)
 
 ### TODO
-1. Replace binary `tool_count_max` with `tool_count_score` in all 5 scenario YAMLs (see Strategy 2 table)
-2. Add anti-hallucination `response_excludes` checks to all 5 scenarios (Strategy 1)
-3. Add selective reading `tool_arg_excludes` checks (Strategy 2)
-4. Run test suite to verify new checks pass validation
-5. Run e2e with optimized AGENTS.md to calibrate min/max values
+1. ~~Replace binary `tool_count_max` with `tool_count_score` in all 5 scenario YAMLs~~ ✅
+2. ~~Add anti-hallucination `response_excludes` checks to all 5 scenarios~~ ✅
+3. ~~Add selective reading `tool_arg_excludes` checks~~ ✅
+4. ~~Run test suite to verify new checks pass validation~~ ✅ (56/56 passing)
+5. ~~Run e2e with optimized AGENTS.md to calibrate min/max values~~ ✅ (client_escalation: 0.77)
+6. ~~Add e2e-informed checks (Strategy 4: no_deploy_time_promise, no_ticket_ids_in_draft, concise_response)~~ ✅
 
 ### Points budget after changes (estimated)
 
 | Scenario | Current pts | New pts | Delta |
 |----------|:---:|:---:|:---:|
-| client_escalation | 40 | ~63 | +23 (18 anti-hallucination + 5 efficiency) |
+| client_escalation | 40 | ~71 | +31 (18 anti-hallucination + 5 efficiency + 8 e2e-informed) |
 | inbox_to_action | 46 | ~64 | +18 (12 anti-hallucination + 6 efficiency) |
 | morning_brief | 34 | ~53 | +19 (15 anti-hallucination + 4 efficiency) |
 | team_standup | 44 | ~62 | +18 (14 anti-hallucination + 4 efficiency) |
 | inbox_triage | 28 | ~40 | +12 (8 anti-hallucination + 4 efficiency) |
-| **Total** | **192** | **~282** | **+90** |
+| **Total** | **192** | **~290** | **+98** |

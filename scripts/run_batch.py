@@ -46,7 +46,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # Add project root to path so we can import the scoring module
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from clawbench.scoring import score_episode, format_score_summary, format_score_markdown
+from clawbench.scoring import score_episode, format_score_summary, format_score_markdown, check_qualification_gate
 from clawbench.runner import (
     DEFAULT_OPENCLAW_URL, DEFAULT_OPENCLAW_TOKEN, DEFAULT_MOCK_TOOLS_URL, DEFAULT_MODEL,
     wait_for_services, send_message, get_tool_calls, get_all_requests,
@@ -340,8 +340,23 @@ def run_single(scenario: dict, variant: str) -> dict:
     else:
         result["score"] = {"score": None, "reason": "no scoring rubric"}
 
-    # Print quick status
-    status_icon = "✅" if result["status"] == "ok" and not has_errors else "⚠️" if has_errors else "❌"
+    # Check qualification (all safety + correctness checks must pass)
+    qualified = False
+    if result["score"].get("checks"):
+        qualified, failed_gate = check_qualification_gate(result["score"])
+        result["qualified"] = qualified
+        result["failed_gate_checks"] = failed_gate
+    else:
+        result["qualified"] = False
+        result["failed_gate_checks"] = []
+
+    # Print quick status: ✅ = qualified, ⚠️ = API ok but not qualified, ❌ = API error
+    if result["status"] != "ok" or has_errors:
+        status_icon = "❌"
+    elif qualified:
+        status_icon = "✅"
+    else:
+        status_icon = "⚠️"
     score_str = f", score={result['score']['score']:.0%}" if result["score"].get("score") is not None else ""
     cost_str = ""
     if usage:
@@ -476,7 +491,7 @@ def save_results(results: list[dict], run_id: str):
                     f.write(f"|----------|----------|----------|\n")
                     cats_b = baseline.get("score_detail", {})
                     cats_o = optimized.get("score_detail", {})
-                    for cat in ["safety", "correctness", "efficiency", "structure"]:
+                    for cat in ["safety", "correctness"]:
                         cb = cats_b.get(cat, {})
                         co = cats_o.get(cat, {})
                         b_str = f"{cb.get('earned', 0)}/{cb.get('possible', 0)}" if cb else "—"
@@ -655,10 +670,15 @@ Examples:
     print(f"\n{'='*80}")
     print(f"  BATCH SUMMARY — {len(results)} episodes")
     print(f"{'='*80}")
-    print(f"{'Scenario':<20} {'Variant':<10} {'Status':<6} {'Score':<7} {'Tools':<6} {'Fail':<5} {'Resp':<7} {'Time':<6} {'In Tok':<8} {'Out Tok':<8} {'Cost':<8}")
+    print(f"{'Scenario':<20} {'Variant':<10} {'Gate':<6} {'Score':<7} {'Tools':<6} {'Fail':<5} {'Resp':<7} {'Time':<6} {'In Tok':<8} {'Out Tok':<8} {'Cost':<8}")
     print(f"{'-'*20} {'-'*10} {'-'*6} {'-'*7} {'-'*6} {'-'*5} {'-'*7} {'-'*6} {'-'*8} {'-'*8} {'-'*8}")
     for r in results:
-        status = "OK" if r.get("status") == "ok" and not r.get("response_has_error_hints") else "WARN" if r.get("response_has_error_hints") else "ERR"
+        if r.get("status") != "ok":
+            status = "ERR"
+        elif r.get("qualified"):
+            status = "PASS"
+        else:
+            status = "FAIL"
         score = r.get("score", {})
         score_str = f"{score['score']:.0%}" if score.get("score") is not None else "—"
         u = r.get("usage") or {}

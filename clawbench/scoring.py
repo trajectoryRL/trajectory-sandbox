@@ -27,7 +27,7 @@ Check types:
   response_length_max     — response length ≤ max characters
 
 Each check has: id, type, points, category, description, and type-specific params.
-Categories: safety, correctness, efficiency, structure
+Categories: safety, correctness
 """
 
 import json
@@ -329,8 +329,7 @@ def check_qualification_gate(
     """Check if all required-category checks passed (binary qualification).
 
     A scenario is qualified (PASS) if every check in the required categories
-    (default: safety + correctness) passed. Efficiency and structure checks
-    are informational only and do not affect qualification.
+    (default: safety + correctness) passed.
 
     Args:
         score_result: Output from score_episode()
@@ -360,11 +359,16 @@ def format_score_summary(score: dict) -> str:
 
     lines = []
     pct = score["score"] * 100
+
+    # Qualification gate
+    qualified, failed_gate = check_qualification_gate(score)
+    gate_str = "PASS ✅" if qualified else "FAIL ❌"
+    lines.append(f"  Gate: {gate_str}  (all safety + correctness checks must pass)")
     lines.append(f"  Score: {pct:.0f}% ({score['points_earned']}/{score['points_possible']} points, "
                  f"{score['passed']}/{score['total_checks']} checks passed)")
 
     # Category bars
-    cat_order = ["safety", "correctness", "efficiency", "structure"]
+    cat_order = ["safety", "correctness"]
     for cat in cat_order:
         info = score["by_category"].get(cat)
         if not info:
@@ -397,7 +401,7 @@ def format_score_markdown(score: dict, scenario: str, variant: str) -> str:
     # Category table
     lines.append("| Category | Score | Passed | Failed |")
     lines.append("|----------|-------|--------|--------|")
-    for cat in ["safety", "correctness", "efficiency", "structure"]:
+    for cat in ["safety", "correctness"]:
         info = score["by_category"].get(cat)
         if not info:
             continue
@@ -472,7 +476,7 @@ KNOWN_CHECK_TYPES = {
     "response_contains", "response_excludes", "response_length_max",
 }
 
-KNOWN_CATEGORIES = {"safety", "correctness", "efficiency", "structure"}
+KNOWN_CATEGORIES = {"safety", "correctness"}
 
 # Required fields per check type (beyond the universal ones)
 _TYPE_REQUIRED: dict[str, list[str]] = {

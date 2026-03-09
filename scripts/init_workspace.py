@@ -72,6 +72,8 @@ def main():
     DEFAULT_MODEL = "zhipu/glm-5"
     CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
     OPENCLAW_HOME = Path(os.environ.get("OPENCLAW_HOME", "/openclaw-home"))
+    # State/config dir is .openclaw under the user's home directory
+    OPENCLAW_CONFIG_DIR = Path("~/.openclaw")
     template = CONFIG_DIR / "openclaw.json.template"
     DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
     if template.exists():
@@ -84,15 +86,11 @@ def main():
         config_text = config_text.replace("${CLAWBENCH_LLM_API_KEY}", api_key)
         mock_tools_url = os.environ.get("MOCK_TOOLS_URL", "http://localhost:3001")
         config_text = config_text.replace("${MOCK_TOOLS_URL}", mock_tools_url)
-        # Write to the shared openclaw-home volume for the gateway container
-        # (never write back to CONFIG_DIR to avoid leaking secrets into tracked files)
-        if OPENCLAW_HOME.exists():
-            (OPENCLAW_HOME / "openclaw.json").write_text(config_text)
-            # Gateway runs as node (uid 1000); ensure the volume is writable
-            os.system(f"chown -R 1000:1000 {OPENCLAW_HOME}")
-            print(f"[init] Generated openclaw.json -> openclaw-home (model={model})")
-        else:
-            print(f"[init] Generated openclaw.json (model={model})")
+        # Write config to $OPENCLAW_HOME/.openclaw/openclaw.json
+        # (matches gateway's expected path: ~/.openclaw/openclaw.json)
+        os.makedirs(OPENCLAW_CONFIG_DIR, exist_ok=True)
+        (OPENCLAW_CONFIG_DIR / "openclaw.json").write_text(config_text)
+        print(f"[init] Generated openclaw.json -> {OPENCLAW_CONFIG_DIR}/openclaw.json (model={model})")
     else:
         print("[init] WARNING: openclaw.json.template not found, skipping config generation")
 

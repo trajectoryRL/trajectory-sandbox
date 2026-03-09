@@ -41,6 +41,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # Add project root to path so we can import the scoring module
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -69,6 +71,8 @@ OPENCLAW_URL = os.getenv("OPENCLAW_URL", DEFAULT_OPENCLAW_URL)
 OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", DEFAULT_OPENCLAW_TOKEN)
 MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", DEFAULT_MOCK_TOOLS_URL)
 CLAWBENCH_MODEL = os.getenv("CLAWBENCH_DEFAULT_MODEL", DEFAULT_MODEL)
+CLAWBENCH_LLM_BASE_URL = os.getenv("CLAWBENCH_LLM_BASE_URL", "https://llm.chutes.ai/v1")
+CLAWBENCH_LLM_API_KEY = os.getenv("CLAWBENCH_LLM_API_KEY", "")
 
 # All mock tools — must match the real OpenClaw tool surface (see mock_tools/server.py)
 ALL_MOCK_TOOLS = [
@@ -98,12 +102,26 @@ DENY_TOOLS = [
 # ---------------------------------------------------------------------------
 def generate_all_tools_config():
     """Generate an openclaw.json that allows ALL mock tools (for batch testing)."""
+    # Derive provider name from model string (e.g. "zai-org/GLM-5-TEE" → "zai-org")
+    # Use full model string as API model ID (Chutes requires "zai-org/GLM-5-TEE", not just "GLM-5-TEE")
+    provider = CLAWBENCH_MODEL.split("/")[0] if "/" in CLAWBENCH_MODEL else "zhipu"
+    model_id = CLAWBENCH_MODEL
     config = {
         "gateway": {
             "mode": "local", "bind": "lan", "port": 18789,
             "auth": {"mode": "token", "token": "sandbox-token-12345"},
             "tailscale": {"mode": "off"},
             "http": {"endpoints": {"chatCompletions": {"enabled": True}}},
+        },
+        "models": {
+            "providers": {
+                provider: {
+                    "baseUrl": CLAWBENCH_LLM_BASE_URL,
+                    "api": "openai-completions",
+                    "apiKey": CLAWBENCH_LLM_API_KEY,
+                    "models": [{"id": model_id, "name": model_id}],
+                },
+            },
         },
         "agents": {
             "defaults": {

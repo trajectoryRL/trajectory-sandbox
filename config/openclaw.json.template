@@ -20,6 +20,23 @@
   },
   "models": {
     "providers": {
+      "chutes": {
+        "baseUrl": "${CLAWBENCH_LLM_BASE_URL}",
+        "api": "openai-completions",
+        "apiKey": "${CLAWBENCH_LLM_API_KEY}",
+        "models": [
+          {
+            "id": "zai-org/GLM-5-TEE",
+            "name": "GLM-5-TEE (Chutes)",
+            "cost": {
+              "input": 1.00,
+              "output": 3.20,
+              "cacheRead": 0.10,
+              "cacheWrite": 0.10
+            }
+          }
+        ]
+      },
       "zhipu": {
         "baseUrl": "${CLAWBENCH_LLM_BASE_URL}",
         "api": "openai-completions",

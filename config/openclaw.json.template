@@ -72,7 +72,7 @@
       "clawbench-tools": {
         "enabled": true,
         "config": {
-          "mockServerUrl": "http://mock-tools:3001",
+          "mockServerUrl": "${MOCK_TOOLS_URL}",
           "scenario": "default"
         }
       }

@@ -17,10 +17,11 @@ from pathlib import Path
 
 import yaml
 
-# Paths inside the init container (mapped via docker-compose volumes)
-SCENARIOS_DIR = Path("/scenarios")
-FIXTURES_DIR = Path("/fixtures")
-WORKSPACE_DIR = Path("/workspace")
+# Paths — configurable via env vars for all-in-one image, with defaults
+# that match the legacy multi-container Docker volume mounts.
+SCENARIOS_DIR = Path(os.environ.get("SCENARIOS_DIR", "/scenarios"))
+FIXTURES_DIR = Path(os.environ.get("FIXTURES_DIR", "/fixtures"))
+WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_DIR", "/workspace"))
 
 
 def main():
@@ -69,8 +70,8 @@ def main():
 
     # Generate openclaw.json from template with the selected model
     DEFAULT_MODEL = "zhipu/glm-5"
-    CONFIG_DIR = Path("/config")
-    OPENCLAW_HOME = Path("/openclaw-home")
+    CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
+    OPENCLAW_HOME = Path(os.environ.get("OPENCLAW_HOME", "/openclaw-home"))
     template = CONFIG_DIR / "openclaw.json.template"
     DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
     if template.exists():
@@ -81,6 +82,8 @@ def main():
         config_text = config_text.replace("${CLAWBENCH_LLM_BASE_URL}", base_url)
         api_key = os.environ.get("CLAWBENCH_LLM_API_KEY", "")
         config_text = config_text.replace("${CLAWBENCH_LLM_API_KEY}", api_key)
+        mock_tools_url = os.environ.get("MOCK_TOOLS_URL", "http://localhost:3001")
+        config_text = config_text.replace("${MOCK_TOOLS_URL}", mock_tools_url)
         # Write to the shared openclaw-home volume for the gateway container
         # (never write back to CONFIG_DIR to avoid leaking secrets into tracked files)
         if OPENCLAW_HOME.exists():

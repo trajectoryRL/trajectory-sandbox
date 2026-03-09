@@ -41,10 +41,10 @@ set -a
 source .env
 set +a
 
-if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+if [ -z "$CLAWBENCH_LLM_API_KEY" ]; then
     echo "ERROR: No API key set in .env"
     echo ""
-    echo "Edit .env and set ANTHROPIC_API_KEY or OPENAI_API_KEY"
+    echo "Edit .env and set CLAWBENCH_LLM_API_KEY"
     exit 1
 fi
 

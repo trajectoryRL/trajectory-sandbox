@@ -24,10 +24,13 @@ services:
       - ./scenarios:/scenarios:ro
       - ./workspace:/workspace
       - ./config:/config
+      - openclaw-home:/openclaw-home
     environment:
       - SCENARIO=${SCENARIO:-client_escalation}
       - VARIANT=${VARIANT:-optimized}
-      - CLAWBENCH_MODEL=${CLAWBENCH_MODEL:-anthropic/claude-sonnet-4-5-20250929}
+      - CLAWBENCH_DEFAULT_MODEL=${CLAWBENCH_DEFAULT_MODEL:-zhipu/glm-5}
+      - CLAWBENCH_LLM_BASE_URL=${CLAWBENCH_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      - CLAWBENCH_LLM_API_KEY=${CLAWBENCH_LLM_API_KEY:-}
 
   # ==========================================================================
   # Mock Tools Server
@@ -72,15 +75,15 @@ services:
     volumes:
       # Workspace with AGENTS.md (populated by init container)
       - ./workspace:/workspace
-      # Static OpenClaw config (same for all scenarios)
-      - ./config/openclaw.json:/home/node/.openclaw/openclaw.json:ro
+      # Writable OpenClaw home (config written by init container)
+      - openclaw-home:/home/node/.openclaw
     env_file:
       - .env
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_KEY=${CLAWBENCH_LLM_API_KEY:-}
+      - OPENAI_BASE_URL=${CLAWBENCH_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-sandbox-token-12345}
-      - CLAWBENCH_MODEL=${CLAWBENCH_MODEL:-anthropic/claude-sonnet-4-5-20250929}
+      - CLAWBENCH_DEFAULT_MODEL=${CLAWBENCH_DEFAULT_MODEL:-zhipu/glm-5}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -96,6 +99,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+volumes:
+  openclaw-home:
 
 networks:
   sandbox-net:

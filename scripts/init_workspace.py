@@ -68,15 +68,28 @@ def main():
             print(f"[init] WARNING: Workspace file not found: {src}")
 
     # Generate openclaw.json from template with the selected model
-    DEFAULT_MODEL = "anthropic/claude-sonnet-4-5-20250929"
+    DEFAULT_MODEL = "zhipu/glm-5"
     CONFIG_DIR = Path("/config")
+    OPENCLAW_HOME = Path("/openclaw-home")
     template = CONFIG_DIR / "openclaw.json.template"
+    DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
     if template.exists():
-        model = os.environ.get("CLAWBENCH_MODEL", DEFAULT_MODEL)
-        config_text = template.read_text().replace("${CLAWBENCH_MODEL}", model)
-        out = CONFIG_DIR / "openclaw.json"
-        out.write_text(config_text)
-        print(f"[init] Generated openclaw.json (model={model})")
+        model = os.environ.get("CLAWBENCH_DEFAULT_MODEL", DEFAULT_MODEL)
+        base_url = os.environ.get("CLAWBENCH_LLM_BASE_URL", DEFAULT_LLM_BASE_URL)
+        config_text = template.read_text()
+        config_text = config_text.replace("${CLAWBENCH_DEFAULT_MODEL}", model)
+        config_text = config_text.replace("${CLAWBENCH_LLM_BASE_URL}", base_url)
+        api_key = os.environ.get("CLAWBENCH_LLM_API_KEY", "")
+        config_text = config_text.replace("${CLAWBENCH_LLM_API_KEY}", api_key)
+        # Write to the shared openclaw-home volume for the gateway container
+        # (never write back to CONFIG_DIR to avoid leaking secrets into tracked files)
+        if OPENCLAW_HOME.exists():
+            (OPENCLAW_HOME / "openclaw.json").write_text(config_text)
+            # Gateway runs as node (uid 1000); ensure the volume is writable
+            os.system(f"chown -R 1000:1000 {OPENCLAW_HOME}")
+            print(f"[init] Generated openclaw.json -> openclaw-home (model={model})")
+        else:
+            print(f"[init] Generated openclaw.json (model={model})")
     else:
         print("[init] WARNING: openclaw.json.template not found, skipping config generation")
 

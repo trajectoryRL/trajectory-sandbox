@@ -13,6 +13,7 @@ from pathlib import Path
 
 import httpx
 import yaml
+from openai import OpenAI
 
 # ---------------------------------------------------------------------------
 # Default configuration
@@ -20,7 +21,20 @@ import yaml
 DEFAULT_OPENCLAW_URL = "http://localhost:18790"
 DEFAULT_OPENCLAW_TOKEN = "sandbox-token-12345"
 DEFAULT_MOCK_TOOLS_URL = "http://localhost:3001"
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-5-20250929"
+DEFAULT_MODEL = "zhipu/glm-5"
+
+
+def _make_openai_client(
+    base_url: str = DEFAULT_OPENCLAW_URL,
+    api_key: str = DEFAULT_OPENCLAW_TOKEN,
+    timeout: int = 180,
+) -> OpenAI:
+    """Create an OpenAI client pointing at the gateway."""
+    return OpenAI(
+        base_url=f"{base_url}/v1",
+        api_key=api_key,
+        timeout=float(timeout),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -83,102 +97,63 @@ def send_message(
     timeout: int = 180,
     session_key: str | None = None,
 ) -> dict:
-    """Send a message to OpenClaw via OpenAI-compatible API.
+    """Send a message via OpenAI-compatible chat completions API.
+
+    Uses the openai SDK to call the gateway's /v1/chat/completions endpoint.
 
     Args:
+        openclaw_url: Gateway base URL.
+        token: Gateway auth token (used as API key).
+        message: User message content.
+        model: Model identifier (e.g. "openai/glm-5").
+        timeout: Request timeout in seconds.
         session_key: Optional session key for deterministic session tracking.
-            Sent via x-openclaw-session-key header. Each scenario evaluation
-            should use a unique key to ensure fresh session isolation.
     """
     if model is None:
-        model = os.getenv("CLAWBENCH_MODEL", DEFAULT_MODEL)
-
-    url = f"{openclaw_url}/v1/chat/completions"
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
-    }
-    if session_key:
-        headers["x-openclaw-session-key"] = session_key
-
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": message}],
-        "stream": False,
-    }
+        model = os.getenv("CLAWBENCH_DEFAULT_MODEL", DEFAULT_MODEL)
 
     try:
-        response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
-        if response.status_code != 200:
-            return {"error": response.text, "status": response.status_code}
-        return response.json()
-    except httpx.RequestError as e:
+        extra_headers = {}
+        if session_key:
+            extra_headers["x-openclaw-session-key"] = session_key
+
+        client = _make_openai_client(
+            base_url=openclaw_url, api_key=token, timeout=timeout,
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": message}],
+            stream=False,
+            extra_headers=extra_headers if extra_headers else None,
+        )
+        return response.model_dump()
+    except Exception as e:
         return {"error": str(e)}
 
 
 def extract_usage(response: dict) -> dict | None:
-    """Extract token usage from an OpenClaw chat completions response.
+    """Extract token usage from an OpenAI chat completions response.
 
-    Reads the x_openclaw_usage field (detailed cache breakdown) if available,
-    falling back to the standard usage field. Returns None if no usage data.
-
-    When per-model usage is available (multi-model routing), includes a
-    ``model_usage`` list with per-model token counts and costs.
+    Returns None if no usage data is present.
     """
-    # Prefer detailed usage with cache breakdown
-    detailed = response.get("x_openclaw_usage")
-    if detailed and isinstance(detailed, dict):
-        result = {
-            "input_tokens": detailed.get("input_tokens", 0),
-            "output_tokens": detailed.get("output_tokens", 0),
-            "cache_read_tokens": detailed.get("cache_read_tokens", 0),
-            "cache_write_tokens": detailed.get("cache_write_tokens", 0),
-            "total_cost_usd": detailed.get("total_cost_usd", 0.0),
-        }
-        # Include per-model breakdown if available
-        model_usage = detailed.get("model_usage")
-        if model_usage and isinstance(model_usage, list):
-            result["model_usage"] = model_usage
-        return result
-
-    # Fall back to standard OpenAI usage field
     usage = response.get("usage")
     if usage and isinstance(usage, dict):
-        total = usage.get("total_tokens", 0)
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total = usage.get("total_tokens", prompt_tokens + completion_tokens)
         if total > 0:
+            cached = 0
+            details = usage.get("prompt_tokens_details")
+            if isinstance(details, dict):
+                cached = details.get("cached_tokens", 0)
             return {
-                "input_tokens": usage.get("prompt_tokens", 0),
-                "output_tokens": usage.get("completion_tokens", 0),
-                "cache_read_tokens": 0,
+                "input_tokens": prompt_tokens,
+                "output_tokens": completion_tokens,
+                "cache_read_tokens": cached,
                 "cache_write_tokens": 0,
                 "total_cost_usd": 0.0,
             }
 
-    return None
-
-
-def get_session_usage(
-    openclaw_url: str,
-    token: str,
-    session_key: str,
-    timeout: int = 10,
-) -> dict | None:
-    """Query per-session cost summary from OpenClaw.
-
-    Calls GET /api/sessions/{key}/usage to retrieve aggregated token usage
-    and cost, including per-model breakdowns for multi-model sessions.
-
-    Returns the usage dict on success, or None on failure.
-    """
-    url = f"{openclaw_url}/api/sessions/{session_key}/usage"
-    headers = {"Authorization": f"Bearer {token}"}
-    try:
-        response = httpx.get(url, headers=headers, timeout=timeout)
-        if response.status_code == 200:
-            return response.json()
-    except httpx.RequestError:
-        pass
     return None
 
 

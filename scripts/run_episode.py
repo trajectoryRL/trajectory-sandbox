@@ -47,7 +47,7 @@ WORKSPACE_DIR = SANDBOX_DIR / "workspace"
 OPENCLAW_URL = os.getenv("OPENCLAW_URL", DEFAULT_OPENCLAW_URL)
 OPENCLAW_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", DEFAULT_OPENCLAW_TOKEN)
 MOCK_TOOLS_URL = os.getenv("MOCK_TOOLS_URL", DEFAULT_MOCK_TOOLS_URL)
-CLAWBENCH_MODEL = os.getenv("CLAWBENCH_MODEL", DEFAULT_MODEL)
+CLAWBENCH_MODEL = os.getenv("CLAWBENCH_DEFAULT_MODEL", DEFAULT_MODEL)
 
 
 def set_mock_user_context(user_context: dict) -> bool:
@@ -403,22 +403,6 @@ def main():
                 "total_usd": usage_data.get("total_cost_usd", 0.0),
                 "model": CLAWBENCH_MODEL,
             }
-            # Per-model breakdown for multi-model routing
-            model_usage = usage_data.get("model_usage")
-            if model_usage:
-                cost_obj["models"] = [
-                    {
-                        "model": m.get("model", "unknown"),
-                        "provider": m.get("provider"),
-                        "count": m.get("count", 0),
-                        "input_tokens": m.get("input_tokens", 0),
-                        "output_tokens": m.get("output_tokens", 0),
-                        "cache_read_tokens": m.get("cache_read_tokens", 0),
-                        "cache_write_tokens": m.get("cache_write_tokens", 0),
-                        "cost_usd": m.get("cost_usd", 0.0),
-                    }
-                    for m in model_usage
-                ]
             output["cost"] = cost_obj
 
         if result.get("response_has_error_hints"):
@@ -476,26 +460,14 @@ def main():
                         print(f"    FAIL  {c['id']}: {c.get('description', '')}")
                         print(f"          {c.get('detail', '')}")
 
-    # Cost display
+    # Usage display
     usage_data = result.get("usage")
     if usage_data:
-        total_usd = usage_data.get("total_cost_usd", 0)
-        print(f"\n  Cost: ${total_usd:.4f}")
+        print(f"\n  Usage:")
         print(f"    Input:       {usage_data.get('input_tokens', 0):,} tokens")
         print(f"    Output:      {usage_data.get('output_tokens', 0):,} tokens")
         print(f"    Cache read:  {usage_data.get('cache_read_tokens', 0):,} tokens")
-        print(f"    Cache write: {usage_data.get('cache_write_tokens', 0):,} tokens")
-
-        model_usage = usage_data.get("model_usage")
-        if model_usage and len(model_usage) > 1:
-            print(f"    Models ({len(model_usage)}):")
-            for m in model_usage:
-                model_name = m.get("model", "unknown")
-                cost = m.get("cost_usd", 0)
-                count = m.get("count", 0)
-                print(f"      {model_name}: ${cost:.4f} ({count} calls)")
-        else:
-            print(f"    Model:       {CLAWBENCH_MODEL}")
+        print(f"    Model:       {CLAWBENCH_MODEL}")
 
     print(f"\nAssistant Response:")
     resp_text = result["response"]

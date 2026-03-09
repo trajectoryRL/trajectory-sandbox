@@ -188,8 +188,8 @@ if [ "$QUICK" = false ]; then
         source .env
         set +a
 
-        if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo -e "${YELLOW}Skipping Docker layer: no API key in .env${NC}"
+        if [ -z "${CLAWBENCH_LLM_API_KEY:-}" ]; then
+            echo -e "${YELLOW}Skipping Docker layer: CLAWBENCH_LLM_API_KEY not set in .env${NC}"
             LAYER_RESULTS+=("SKIP:4-docker")
         else
             # Build and start (init container handles workspace setup)

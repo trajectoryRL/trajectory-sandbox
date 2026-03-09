@@ -18,11 +18,23 @@
       }
     }
   },
+  "models": {
+    "providers": {
+      "zhipu": {
+        "baseUrl": "${CLAWBENCH_LLM_BASE_URL}",
+        "api": "openai-completions",
+        "apiKey": "${CLAWBENCH_LLM_API_KEY}",
+        "models": [
+          {"id": "glm-5", "name": "GLM-5"}
+        ]
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "workspace": "/workspace",
       "model": {
-        "primary": "${CLAWBENCH_MODEL}"
+        "primary": "${CLAWBENCH_DEFAULT_MODEL}"
       }
     }
   },

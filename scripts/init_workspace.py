@@ -73,7 +73,7 @@ def main():
     CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
     OPENCLAW_HOME = Path(os.environ.get("OPENCLAW_HOME", "/openclaw-home"))
     # State/config dir is .openclaw under the user's home directory
-    OPENCLAW_CONFIG_DIR =  "~/.openclaw"
+    OPENCLAW_CONFIG_DIR = Path("~/.openclaw")
     template = CONFIG_DIR / "openclaw.json.template"
     DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
     if template.exists():
@@ -89,8 +89,7 @@ def main():
         # Write config to $OPENCLAW_HOME/.openclaw/openclaw.json
         # (matches gateway's expected path: ~/.openclaw/openclaw.json)
         os.makedirs(OPENCLAW_CONFIG_DIR, exist_ok=True)
-        with open(OPENCLAW_CONFIG_DIR / "openclaw.json", "w") as f:
-            f.write_text(config_text)
+        (OPENCLAW_CONFIG_DIR / "openclaw.json").write_text(config_text)
         print(f"[init] Generated openclaw.json -> {OPENCLAW_CONFIG_DIR}/openclaw.json (model={model})")
     else:
         print("[init] WARNING: openclaw.json.template not found, skipping config generation")

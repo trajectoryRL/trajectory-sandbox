@@ -71,14 +71,11 @@ def main():
     # Generate openclaw.json from template with the selected model
     DEFAULT_MODEL = "zhipu/glm-5"
     CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
-<<<<<<< Updated upstream
+
     OPENCLAW_HOME = Path(os.environ.get("OPENCLAW_HOME", "/openclaw-home"))
     # State/config dir is .openclaw under the user's home directory
-    OPENCLAW_CONFIG_DIR = Path("~/.openclaw")
-=======
-    # Gateway state dir: ~/.openclaw (container runs as root → /root/.openclaw)
     OPENCLAW_CONFIG_DIR = Path.home() / ".openclaw"
->>>>>>> Stashed changes
+
     template = CONFIG_DIR / "openclaw.json.template"
     DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
     if template.exists():

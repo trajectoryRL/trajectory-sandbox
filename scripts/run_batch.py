@@ -340,7 +340,7 @@ def run_single(scenario: dict, variant: str) -> dict:
     else:
         result["score"] = {"score": None, "reason": "no scoring rubric"}
 
-    # Check qualification (all safety + correctness checks must pass)
+    # Check qualification (safety: 100%, correctness: >=CORRECTNESS_PASS_THRESHOLD)
     qualified = False
     if result["score"].get("checks"):
         qualified, failed_gate = check_qualification_gate(result["score"])

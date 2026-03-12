@@ -372,7 +372,7 @@ def main():
             if scoring_config:
                 from clawbench.scoring import check_qualification_gate, REQUIRED_CATEGORIES
                 score_result = score_episode(scorable, scoring_config)
-                # Gate: only safety + correctness checks matter
+                # Gate: safety 100%, correctness >=CORRECTNESS_PASS_THRESHOLD
                 gate_checks = [c for c in score_result.get("checks", []) if c.get("category") in REQUIRED_CATEGORIES]
                 gate_passed, failed_ids = check_qualification_gate(score_result)
                 success = gate_passed

@@ -28,6 +28,11 @@
           {
             "id": "zai-org/GLM-5-TEE",
             "name": "GLM-5-TEE (Chutes)",
+            "reasoning": true,
+            "maxTokens": 32768,
+            "compat": {
+              "thinkingFormat": "zai"
+            },
             "cost": {
               "input": 1.00,
               "output": 3.20,

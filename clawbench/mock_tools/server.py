@@ -222,6 +222,10 @@ def handle_slack(data: dict, scenario: str) -> dict:
             return {"ok": True, "user": member}
         return {"ok": True, "user": {"id": user_id, "name": "Unknown User"}}
 
+    elif action == "listChannels":
+        channels = load_fixture(scenario, "slack_channels.json") or []
+        return {"ok": True, "channels": channels}
+
     elif action == "emojiList":
         return {"ok": True, "emojis": []}
 

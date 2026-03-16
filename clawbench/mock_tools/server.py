@@ -149,10 +149,17 @@ def handle_slack(data: dict, scenario: str) -> dict:
         messages = load_fixture(scenario, "slack_messages.json") or []
         if channel_id:
             ch = channel_id.lstrip("#")
+            # Resolve channel ID to name if needed (e.g. "ch_eng" -> "platform-engineering")
+            channels = load_fixture(scenario, "slack_channels.json") or []
+            resolved_names = {ch}  # original query
+            for c in channels:
+                if c.get("id", "").lstrip("#") == ch or c.get("name", "").lstrip("#") == ch:
+                    resolved_names.add(c.get("name", "").lstrip("#"))
+                    resolved_names.add(c.get("id", "").lstrip("#"))
             messages = [
                 m for m in messages
-                if m.get("channel", "").lstrip("#") == ch
-                or m.get("channelId", "").lstrip("#") == ch
+                if m.get("channel", "").lstrip("#") in resolved_names
+                or m.get("channelId", "").lstrip("#") in resolved_names
             ]
         messages = messages[:limit]
         return {"ok": True, "messages": messages}
@@ -221,6 +228,10 @@ def handle_slack(data: dict, scenario: str) -> dict:
         if member:
             return {"ok": True, "user": member}
         return {"ok": True, "user": {"id": user_id, "name": "Unknown User"}}
+
+    elif action == "listChannels":
+        channels = load_fixture(scenario, "slack_channels.json") or []
+        return {"ok": True, "channels": channels}
 
     elif action == "emojiList":
         return {"ok": True, "emojis": []}

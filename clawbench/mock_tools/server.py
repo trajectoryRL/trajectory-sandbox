@@ -313,12 +313,12 @@ def handle_exec(data: dict, scenario: str) -> dict:
     # -- Notion API (tasks & docs via curl) ---------------------------------
 
     # Query a database (task list)
-    if re.search(r"curl.*notion\.so/v1/databases/.*/query", cmd, re.IGNORECASE):
+    if re.search(r"curl.*notion\.(?:so|com)/v1/databases/.*/query", cmd, re.IGNORECASE):
         tasks = load_fixture(scenario, "tasks.json") or []
         return _exec_success(json.dumps({"results": tasks}, indent=2))
 
     # Get a page (task/doc detail)
-    m2 = re.search(r"curl.*notion\.so/v1/pages/([A-Za-z0-9_-]+)", cmd, re.IGNORECASE)
+    m2 = re.search(r"curl.*notion\.(?:so|com)/v1/pages/([A-Za-z0-9_-]+)", cmd, re.IGNORECASE)
     if m2:
         page_id = m2.group(1)
         # Try tasks first, then documents
@@ -332,16 +332,16 @@ def handle_exec(data: dict, scenario: str) -> dict:
         return _exec_failure(f"Page not found: {page_id}", exit_code=1)
 
     # Create a page (task/doc create) - POST without specific page ID
-    if re.search(r"curl.*-X\s*POST.*notion\.so/v1/pages", cmd, re.IGNORECASE):
+    if re.search(r"curl.*-X\s*POST.*notion\.(?:so|com)/v1/pages", cmd, re.IGNORECASE):
         ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         return _exec_success(json.dumps({"id": f"page_{ts}", "status": "created"}, indent=2))
 
     # Update a page (PATCH)
-    if re.search(r"curl.*-X\s*PATCH.*notion\.so/v1/pages", cmd, re.IGNORECASE):
+    if re.search(r"curl.*-X\s*PATCH.*notion\.(?:so|com)/v1/pages", cmd, re.IGNORECASE):
         return _exec_success(json.dumps({"status": "updated"}, indent=2))
 
     # Query databases list
-    if re.search(r"curl.*notion\.so/v1/databases\b", cmd, re.IGNORECASE):
+    if re.search(r"curl.*notion\.(?:so|com)/v1/databases\b", cmd, re.IGNORECASE):
         docs = load_fixture(scenario, "documents.json") or []
         return _exec_success(json.dumps({"results": docs}, indent=2))
 

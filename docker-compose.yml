@@ -31,6 +31,7 @@ services:
       - CLAWBENCH_DEFAULT_MODEL=${CLAWBENCH_DEFAULT_MODEL:-zhipu/glm-5}
       - CLAWBENCH_LLM_BASE_URL=${CLAWBENCH_LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
       - CLAWBENCH_LLM_API_KEY=${CLAWBENCH_LLM_API_KEY:-}
+      - MOCK_TOOLS_URL=http://mock-tools:3001
 
   # ==========================================================================
   # Mock Tools Server

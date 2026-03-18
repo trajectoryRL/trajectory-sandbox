@@ -95,6 +95,13 @@ def main():
     else:
         print("[init] WARNING: openclaw.json.template not found, skipping config generation")
 
+    # Ensure the gateway (running as node, uid 1000) can write to workspace
+    # (e.g. SOUL.md). The init container runs as root, so files it creates
+    # are root-owned by default.
+    import subprocess
+    subprocess.run(["chown", "-R", "1000:1000", str(WORKSPACE_DIR)], check=False)
+    print(f"[init] Set workspace ownership to node (uid 1000)")
+
     print(f"[init] Workspace ready for scenario '{scenario_name}' (variant: {variant})")
 
 

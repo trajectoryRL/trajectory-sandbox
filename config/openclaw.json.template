@@ -34,10 +34,10 @@
               "thinkingFormat": "zai"
             },
             "cost": {
-              "input": 1.00,
-              "output": 3.20,
-              "cacheRead": 1.00,
-              "cacheWrite": 1.00
+              "input": 0.55,
+              "output": 2.48,
+              "cacheRead": 0.14,
+              "cacheWrite": 0.55
             }
           }
         ]
@@ -56,10 +56,10 @@
               "thinkingFormat": "zai"
             },
             "cost": {
-              "input": 1.00,
-              "output": 3.20,
-              "cacheRead": 1.00,
-              "cacheWrite": 1.00
+              "input": 0.55,
+              "output": 2.48,
+              "cacheRead": 0.14,
+              "cacheWrite": 0.55
             }
           }
         ]
@@ -78,10 +78,10 @@
               "thinkingFormat": "zai"
             },
             "cost": {
-              "input": 1.00,
-              "output": 3.20,
-              "cacheRead": 1.00,
-              "cacheWrite": 1.00
+              "input": 0.55,
+              "output": 2.48,
+              "cacheRead": 0.14,
+              "cacheWrite": 0.55
             }
           }
         ]

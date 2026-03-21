@@ -50,6 +50,33 @@
           {
             "id": "glm-5",
             "name": "GLM-5",
+            "reasoning": true,
+            "maxTokens": 32768,
+            "compat": {
+              "thinkingFormat": "zai"
+            },
+            "cost": {
+              "input": 1.00,
+              "output": 3.20,
+              "cacheRead": 1.00,
+              "cacheWrite": 1.00
+            }
+          }
+        ]
+      },
+      "openrouter": {
+        "baseUrl": "${CLAWBENCH_LLM_BASE_URL}",
+        "api": "openai-completions",
+        "apiKey": "${CLAWBENCH_LLM_API_KEY}",
+        "models": [
+          {
+            "id": "z-ai/glm-5",
+            "name": "GLM-5 (OpenRouter)",
+            "reasoning": true,
+            "maxTokens": 32768,
+            "compat": {
+              "thinkingFormat": "zai"
+            },
             "cost": {
               "input": 1.00,
               "output": 3.20,

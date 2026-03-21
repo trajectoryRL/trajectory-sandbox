@@ -72,8 +72,16 @@ def main():
     DEFAULT_MODEL = "zhipu/glm-5"
     CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
 
-    OPENCLAW_HOME = Path(os.environ.get("OPENCLAW_HOME", "/openclaw-home"))
-    OPENCLAW_CONFIG_DIR = OPENCLAW_HOME / ".openclaw"
+    # Resolve where to write openclaw.json so the gateway actually reads it.
+    # OPENCLAW_CONFIG_DIR lets callers override the output directory directly.
+    # Fallback: $OPENCLAW_HOME (docker-compose volume maps this to the
+    # gateway's ~/.openclaw).  Previous code appended an extra .openclaw/
+    # subdirectory which created double-nesting and the config was never
+    # picked up by the gateway.
+    OPENCLAW_CONFIG_DIR = Path(
+        os.environ.get("OPENCLAW_CONFIG_DIR")
+        or os.environ.get("OPENCLAW_HOME", "/openclaw-home")
+    )
 
     template = CONFIG_DIR / "openclaw.json.template"
     DEFAULT_LLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
@@ -87,8 +95,6 @@ def main():
         config_text = config_text.replace("${CLAWBENCH_LLM_API_KEY}", api_key)
         mock_tools_url = os.environ.get("MOCK_TOOLS_URL", "http://localhost:3001")
         config_text = config_text.replace("${MOCK_TOOLS_URL}", mock_tools_url)
-        # Write config to $OPENCLAW_HOME/.openclaw/openclaw.json
-        # (matches gateway's state dir resolved via OPENCLAW_HOME)
         os.makedirs(OPENCLAW_CONFIG_DIR, exist_ok=True)
         (OPENCLAW_CONFIG_DIR / "openclaw.json").write_text(config_text)
         print(f"[init] Generated openclaw.json -> {OPENCLAW_CONFIG_DIR}/openclaw.json (model={model})")

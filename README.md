@@ -75,7 +75,7 @@ Hard scenarios carry 1.5x weight; medium scenarios carry 1.0x weight.
 cd clawbench
 
 # 1. Create .env with your API key
-cp .env.example .env   # then edit: ANTHROPIC_API_KEY=sk-ant-...
+cp .env.example .env   # then edit: CLAWBENCH_LLM_API_KEY, CLAWBENCH_LLM_BASE_URL, CLAWBENCH_DEFAULT_MODEL
 
 # 2. Start services
 SCENARIO=client_escalation docker compose up --build
@@ -83,6 +83,14 @@ SCENARIO=client_escalation docker compose up --build
 # 3. Run an episode (in another terminal)
 python scripts/run_episode.py --scenario client_escalation --wait
 ```
+
+**Supported providers** (any OpenAI-compatible API):
+
+| Provider | `CLAWBENCH_LLM_BASE_URL` | `CLAWBENCH_DEFAULT_MODEL` |
+|----------|--------------------------|---------------------------|
+| [Zhipu AI](https://bigmodel.cn) (default) | `https://open.bigmodel.cn/api/paas/v4` | `zhipu/glm-5` |
+| [Chutes](https://chutes.ai) | `https://llm.chutes.ai/v1` | `chutes/zai-org/GLM-5-TEE` |
+| [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` | `openrouter/zhipu/glm-5` |
 
 Dashboard: `http://localhost:18790/?token=sandbox-token-12345`
 

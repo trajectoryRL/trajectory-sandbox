@@ -29,6 +29,7 @@
             "id": "zai-org/GLM-5-TEE",
             "name": "GLM-5-TEE (Chutes)",
             "reasoning": true,
+            "contextWindow": 131072,
             "maxTokens": 32768,
             "compat": {
               "thinkingFormat": "zai"
@@ -51,6 +52,7 @@
             "id": "glm-5",
             "name": "GLM-5",
             "reasoning": true,
+            "contextWindow": 131072,
             "maxTokens": 32768,
             "compat": {
               "thinkingFormat": "zai"
@@ -73,6 +75,7 @@
             "id": "z-ai/glm-5",
             "name": "GLM-5 (OpenRouter)",
             "reasoning": true,
+            "contextWindow": 131072,
             "maxTokens": 32768,
             "compat": {
               "thinkingFormat": "zai"

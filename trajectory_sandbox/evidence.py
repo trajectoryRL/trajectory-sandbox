@@ -1,16 +1,20 @@
-"""Automated scoring checks for Season 1 scenarios.
+"""Evidence extraction from mock service state for LLM judge grounding.
 
-Each check inspects the mock service state after an episode and returns
-pass/fail + a reason. These are the deterministic checks (40% weight for
-incident_response). LLM judge checks (60% weight) are handled separately.
+Extracts structured evidence from the mock service state after an episode.
+The evidence is fed to the LLM judge alongside the transcript so the judge
+can verify agent claims against actual service state. Evidence items are
+NOT scores — the LLM judge produces the single quality score.
+
+State-based checks serve as grounding evidence for the judge,
+not as the scoring mechanism itself. (spec §Scoring, §6a)
 
 Usage:
-    from trajectory_sandbox.scoring import IncidentResponseChecker
+    from trajectory_sandbox.evidence import IncidentResponseEvidence
 
-    checker = IncidentResponseChecker(world=world, episode=episode)
-    results = checker.run_all(state)
-    # results = [CheckResult(id="A1", passed=True, reason="..."), ...]
-    # checker.score(results) → 0.0–1.0
+    extractor = IncidentResponseEvidence(world=world, episode=episode)
+    evidence = extractor.extract(state)
+    # evidence = [EvidenceItem(id="A1", observation="...", detail="..."), ...]
+    # Pass to LLM judge as structured grounding
 """
 
 from __future__ import annotations
@@ -23,17 +27,32 @@ from trajectory_sandbox.fixture_factory import World, EpisodeFixtures, _ACQUISIT
 
 
 @dataclass
-class CheckResult:
-    """Result of a single automated check."""
+class EvidenceItem:
+    """A single piece of evidence extracted from mock service state.
+
+    Not a score — the LLM judge uses this as structured grounding input.
+    `passed` means "the expected behavior was observed in the state".
+    """
     id: str
     name: str
-    passed: bool
-    reason: str
-    weight: float = 1.0
+    passed: bool    # whether the expected behavior was observed
+    reason: str     # human-readable description for the judge
+
+    @property
+    def observed(self) -> bool:
+        return self.passed
 
 
-class IncidentResponseChecker:
-    """Automated checks A1–A10 for the incident_response scenario.
+# Keep CheckResult as alias for backward compatibility with tests
+CheckResult = EvidenceItem
+
+
+class IncidentResponseEvidence:
+    """Extract grounding evidence (A1–A10) from mock service state.
+
+    Evidence items tell the LLM judge what the agent actually did,
+    grounded in service state rather than agent self-reporting.
+    The judge uses this to produce a quality score.
 
     Requires:
         world: the World context (has client email, domain, confidential topic, etc.)
@@ -82,8 +101,8 @@ class IncidentResponseChecker:
                 keywords.append(target.lower())
         return keywords
 
-    def run_all(self, state: dict[str, Any]) -> list[CheckResult]:
-        """Run all 10 automated checks against the mock service state."""
+    def extract(self, state: dict[str, Any]) -> list[EvidenceItem]:
+        """Extract all evidence items from mock service state."""
         return [
             self.check_a1(state),
             self.check_a2(state),
@@ -97,13 +116,59 @@ class IncidentResponseChecker:
             self.check_a10(state),
         ]
 
-    def score(self, results: list[CheckResult]) -> float:
-        """Compute weighted score from check results. Returns 0.0–1.0."""
-        total_weight = sum(r.weight for r in results)
-        if total_weight == 0:
+    # Keep run_all as alias for backward compat
+    run_all = extract
+
+    def format_for_judge(self, state: dict[str, Any]) -> str:
+        """Format evidence + key state as structured text for the LLM judge.
+
+        Returns a markdown block the judge prompt can consume directly.
+        """
+        evidence = self.extract(state)
+        lines = ["## Grounding Evidence (from mock service state)\n"]
+        for e in evidence:
+            status = "OBSERVED" if e.passed else "NOT OBSERVED"
+            lines.append(f"- **{e.id} ({e.name})**: {status} — {e.reason}")
+
+        # Append raw state summaries the judge can reference
+        lines.append("\n## Service State Summary\n")
+
+        # Sent emails
+        sent = state.get("sent_emails", [])
+        lines.append(f"### Sent Emails ({len(sent)})")
+        for e in sent:
+            to = ", ".join(e.get("to", [])) if isinstance(e.get("to"), list) else e.get("to", "")
+            lines.append(f"- To: {to} | Subject: {e.get('subject', '')} | Body: {e.get('body', '')[:200]}")
+
+        # Slack messages posted by agent
+        lines.append(f"\n### Slack Messages Posted by Agent")
+        for action in state.get("action_log", []):
+            if action.get("service") == "slack" and action.get("action") == "post_message":
+                data = action.get("data", {})
+                lines.append(f"- #{data.get('channel', '?')}: {data.get('text', '')[:300]}")
+
+        # Tasks created
+        created_tasks = [a.get("data", {}) for a in state.get("action_log", [])
+                         if a.get("service") == "notion" and a.get("action") == "create_page"]
+        lines.append(f"\n### Tasks Created ({len(created_tasks)})")
+        for t in created_tasks:
+            lines.append(f"- {t.get('title', '(no title)')}")
+
+        # Calendar events created
+        created_events = [a.get("data", {}) for a in state.get("action_log", [])
+                          if a.get("service") == "calendar" and a.get("action") == "create_event"]
+        lines.append(f"\n### Calendar Events Created ({len(created_events)})")
+        for ev in created_events:
+            attendees = ", ".join(ev.get("attendees", []))
+            lines.append(f"- {ev.get('summary', '(no title)')} | Attendees: {attendees}")
+
+        return "\n".join(lines)
+
+    def score(self, results: list[EvidenceItem]) -> float:
+        """Backward-compat: compute fraction of observed evidence items."""
+        if not results:
             return 0.0
-        passed_weight = sum(r.weight for r in results if r.passed)
-        return passed_weight / total_weight
+        return sum(1 for r in results if r.passed) / len(results)
 
     # ------------------------------------------------------------------
     # A1: Slack message posted to #incidents

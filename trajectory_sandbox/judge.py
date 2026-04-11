@@ -148,18 +148,32 @@ class JudgeResult:
 class EpisodeJudge:
     """Scores a single episode via LLM judge.
 
-    Supports any OpenAI-compatible API (Anthropic, OpenAI, local).
+    Supports any OpenAI-compatible API (Anthropic, OpenAI, OpenRouter, local).
+
+    Configuration priority:
+      1. Constructor args
+      2. Environment variables (CLAWBENCH_LLM_API_KEY, CLAWBENCH_LLM_BASE_URL, CLAWBENCH_DEFAULT_MODEL)
+      3. .env file in cwd or parent directories
+      4. Defaults
     """
 
     def __init__(
         self,
         api_key: str = "",
-        api_base: str = "https://api.anthropic.com/v1",
-        model: str = "claude-sonnet-4-20250514",
+        api_base: str = "",
+        model: str = "",
     ):
-        self.api_key = api_key
-        self.api_base = api_base
-        self.model = model
+        # Load .env if available
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()  # searches cwd and parents
+        except ImportError:
+            pass
+
+        import os
+        self.api_key = api_key or os.environ.get("CLAWBENCH_LLM_API_KEY", "")
+        self.api_base = api_base or os.environ.get("CLAWBENCH_LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        self.model = model or os.environ.get("CLAWBENCH_DEFAULT_MODEL", "openrouter/z-ai/glm-5.1")
 
     def score_episode(
         self,
@@ -259,7 +273,9 @@ class EpisodeJudge:
             },
             timeout=120,
         )
-        response.raise_for_status()
+        if response.status_code != 200:
+            body = response.text[:500]
+            raise RuntimeError(f"LLM API {response.status_code}: {body}")
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
@@ -268,8 +284,12 @@ class EpisodeJudge:
         # Extract JSON from response (may be wrapped in markdown code block)
         text = raw.strip()
         if text.startswith("```"):
-            text = text.split("\n", 1)[1]  # skip ```json line
+            # Handle both "```json\n{" and "```json{" (no newline)
+            text = text.lstrip("`")
+            if text.startswith("json"):
+                text = text[4:]
             text = text.rsplit("```", 1)[0]
+            text = text.strip()
 
         try:
             data = json.loads(text)

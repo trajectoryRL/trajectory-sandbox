@@ -31,15 +31,15 @@ from aiosmtpd.controller import Controller
 from aiosmtpd.handlers import Message
 
 if TYPE_CHECKING:
-    from mock_services.server import ServiceState
+    from mock_services.state_store import SQLiteStateStore
 
 logger = logging.getLogger(__name__)
 
 
 class SandboxSMTPHandler:
-    """aiosmtpd handler that stores received messages in ServiceState."""
+    """aiosmtpd handler that stores received messages in SQLiteStateStore."""
 
-    def __init__(self, state: "ServiceState"):
+    def __init__(self, state: "SQLiteStateStore"):
         self.state = state
 
     async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
@@ -58,7 +58,7 @@ class SandboxSMTPHandler:
                 "timestamp": datetime.utcnow().isoformat(),
                 "via": "smtp",
             }
-            self.state.sent_emails.append(stored)
+            self.state.append("sent_emails", stored)
             self.state.log_action("email", "smtp_send", stored)
             logger.info("SMTP: received email from %s to %s: %s",
                         stored["from"], stored["to"], stored["subject"])

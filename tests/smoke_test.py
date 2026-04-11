@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "docker"))
 def test_mock_services():
     """Test all mock service endpoints via FastAPI test client."""
     from fastapi.testclient import TestClient
-    from mock_services.server import app, state
+    from mock_services.server import app, store
 
     client = TestClient(app)
     print("\n=== Mock Services Test ===")

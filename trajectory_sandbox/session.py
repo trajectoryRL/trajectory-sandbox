@@ -10,9 +10,10 @@ Lifecycle:
      c. Apply egress rules
      d. Wait for harness to complete (or timeout)
      e. Capture logs + mock state
-     f. Stop harness container
+     f. Score episode via EpisodeScorer (evidence + LLM judge → quality)
+     g. Stop harness container
   5. Destroy sandbox + network
-  6. Return aggregated results
+  6. Compute split-half delta from 4 quality scores → final_score
 
 Usage:
     config = SandboxConfig(...)
@@ -183,13 +184,17 @@ class EvalSession:
         skill_md: str,
         instructions: list[str],
         fixtures_per_episode: list[dict[str, str | bytes]] | None = None,
+        scorer: Any | None = None,
     ) -> EvalSessionResult:
-        """Convenience: run N episodes end-to-end.
+        """Run N episodes end-to-end, optionally scoring each via LLM judge.
 
         Args:
             skill_md: Miner's SKILL.md content
             instructions: List of INSTRUCTION.md content per episode
             fixtures_per_episode: Optional list of fixture dicts per episode
+            scorer: Optional EpisodeScorer (or list of per-episode scorers).
+                    If provided, each episode's quality is set by the LLM judge.
+                    If None, quality stays 0.0 (must be scored externally).
         """
         self.load_skill(skill_md)
 
@@ -198,7 +203,19 @@ class EvalSession:
 
         for i, instruction in enumerate(instructions):
             fixtures = (fixtures_per_episode[i] if fixtures_per_episode else None)
-            self.run_episode(i, instruction, fixtures)
+            episode = self.run_episode(i, instruction, fixtures)
+
+            # Score via LLM judge if scorer provided
+            if scorer is not None and episode.error is None:
+                ep_scorer = scorer[i] if isinstance(scorer, list) else scorer
+                try:
+                    episode.quality = ep_scorer.score(
+                        transcript=episode.transcript,
+                        mock_state=episode.mock_state,
+                    )
+                    logger.info("Episode %d scored: quality=%.3f", i, episode.quality)
+                except Exception as e:
+                    logger.error("Episode %d scoring failed: %s", i, e)
 
         self.result.compute_scores()
         return self.result

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run unit tests
+        run: |
+          pytest tests/test_types.py tests/test_fixture_factory.py tests/test_state_store.py tests/test_scoring.py tests/test_judge.py tests/test_episode_scorer.py -v
+
+      - name: Run conformance tests
+        run: |
+          pytest tests/test_conformance.py -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sandbox image
+        run: |
+          docker build -f docker/Dockerfile.sandbox -t ghcr.io/trajectoryrl/trajectory-sandbox:test docker/
+
+      - name: Verify image runs
+        run: |
+          docker run --rm ghcr.io/trajectoryrl/trajectory-sandbox:test echo "sandbox OK"
+
+  docker-publish:
+    needs: [test, docker-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push sandbox image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/
+          file: docker/Dockerfile.sandbox
+          push: true
+          tags: |
+            ghcr.io/trajectoryrl/trajectory-sandbox:latest
+            ghcr.io/trajectoryrl/trajectory-sandbox:${{ github.sha }}

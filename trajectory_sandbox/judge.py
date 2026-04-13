@@ -56,7 +56,7 @@ You will receive:
 Score the agent's performance on each criterion below. For each criterion:
 - Score 1 if the criterion is clearly met
 - Score 0 if the criterion is not met or cannot be verified
-- Provide a brief reason (1 sentence)
+- Provide a brief reason (under 15 words)
 
 IMPORTANT: Use the grounding evidence to verify agent claims. If the agent says "I posted to Slack" but the evidence shows no Slack message, score 0. The evidence is the source of truth, not the agent's self-reporting.
 
@@ -294,7 +294,7 @@ class EpisodeJudge:
                 },
                 json={
                     "model": self.model,
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
                     "system": system,
                     "messages": [{"role": "user", "content": user}],
                 },
@@ -317,7 +317,7 @@ class EpisodeJudge:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                "max_tokens": 4096,
+                "max_tokens": 8192,
                 "temperature": 0.0,
             },
             timeout=300,

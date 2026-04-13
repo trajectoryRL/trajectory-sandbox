@@ -31,7 +31,7 @@ import docker
 
 
 SANDBOX_IMAGE = "ghcr.io/trajectoryrl/trajectory-sandbox:latest"
-HERMES_IMAGE = "nousresearch/hermes-agent:latest"
+HERMES_IMAGE = "ghcr.io/trajectoryrl/hermes-agent:latest"
 NETWORK_NAME = "hermes_live_test"
 EPISODE_TIMEOUT = 300  # 5 min for a single episode test
 
@@ -193,48 +193,33 @@ def main():
         # -- Start Hermes with local terminal + shared workspace volume --
         print(f"\n4. Starting Hermes Agent container...")
 
-        # Hermes config: local terminal backend, workspace at /workspace
+        # Hermes config: SSH terminal backend connecting to the sandbox
         hermes_config = {
             "model": {
                 "default": model,
             },
             "terminal": {
-                "backend": "local",
+                "backend": "ssh",
                 "cwd": "/workspace",
                 "timeout": 120,
+                "lifetime_seconds": 240,
+                "ssh_host": sandbox_ip,
+                "ssh_user": "agent",
+                "ssh_port": 22,
+                "ssh_key": "/tmp/sandbox_key",
             },
             "agent": {
                 "max_turns": 30,
             },
         }
 
-        # Prompt: tell Hermes to use curl against the sandbox IP
         hermes_prompt = (
-            f"Read /workspace/SKILL.md for your role. "
-            f"Read /workspace/INSTRUCTION.md for the task. "
-            f"Mock services are at http://{sandbox_ip}:8090 (use this URL for ALL curl commands). "
-            f"Use curl to interact with services. "
-            f"After completing the task, write reflections to /workspace/learned/notes.md."
+            "Read /workspace/SKILL.md for your role. "
+            "Read /workspace/INSTRUCTION.md for the task. "
+            "Use curl to interact with mock services at http://localhost:8090. "
+            "After completing the task, write reflections to /workspace/learned/notes.md."
         )
         safe_prompt = hermes_prompt.replace("'", "'\\''")
-
-        # Create a shared volume and copy workspace files from sandbox
-        workspace_vol = f"hermes_ws_{int(time.time())}"
-        client.volumes.create(workspace_vol)
-
-        helper = client.containers.run(
-            "alpine:3.19", command="sh -c 'sleep 30'",
-            name="hermes_vol_helper", detach=True,
-            volumes={workspace_vol: {"bind": "/workspace", "mode": "rw"}},
-        )
-        try:
-            bits, _ = sandbox.get_archive("/workspace/")
-            helper.put_archive("/", bits)
-            exit_code, out = helper.exec_run(["ls", "/workspace/"])
-            print(f"   Workspace: {out.decode().strip()}")
-        finally:
-            helper.stop(timeout=1)
-            helper.remove(force=True)
 
         startup_script = f"""#!/bin/bash
 set -e
@@ -245,6 +230,19 @@ mkdir -p "$HERMES_HOME"/{{cron,sessions,logs,hooks,memories,skills,skins,plans,w
 if [ ! -f "$HERMES_HOME/.env" ]; then cp "$INSTALL_DIR/.env.example" "$HERMES_HOME/.env"; fi
 if [ ! -f "$HERMES_HOME/SOUL.md" ]; then cp "$INSTALL_DIR/docker/SOUL.md" "$HERMES_HOME/SOUL.md"; fi
 if [ -d "$INSTALL_DIR/skills" ]; then python3 "$INSTALL_DIR/tools/skills_sync.py"; fi
+
+# Write SSH key
+cat > /tmp/sandbox_key << 'KEYEOF'
+{keypair.private_key}
+KEYEOF
+chmod 600 /tmp/sandbox_key
+
+# SSH config: skip host key checking
+mkdir -p "$HERMES_HOME/home/.ssh"
+printf "Host *\\n  StrictHostKeyChecking no\\n  UserKnownHostsFile /dev/null\\n  LogLevel ERROR\\n" > "$HERMES_HOME/home/.ssh/config"
+chmod 700 "$HERMES_HOME/home/.ssh"
+chmod 600 "$HERMES_HOME/home/.ssh/config"
+export HOME="$HERMES_HOME/home"
 
 cat > "$HERMES_HOME/config.yaml" << 'CFGEOF'
 {yaml.dump(hermes_config)}
@@ -263,13 +261,12 @@ exec hermes chat -q '{safe_prompt}' --quiet --yolo --max-turns 30
             name="hermes_hermes_test",
             detach=True,
             network=network.name,
-            volumes={workspace_vol: {"bind": "/workspace", "mode": "rw"}},
             environment={"OPENROUTER_API_KEY": api_key},
             labels={"trajectoryrl.role": "harness"},
         )
 
         print(f"   Hermes: {hermes.short_id}")
-        print(f"   Mock services: http://{sandbox_ip}:8090")
+        print(f"   SSH target: agent@{sandbox_ip}:22")
         print(f"   Waiting for completion (timeout={EPISODE_TIMEOUT}s)...")
 
         # -- Wait for Hermes to finish --

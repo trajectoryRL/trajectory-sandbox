@@ -1,0 +1,7 @@
+# Hermes Agent with SSH client for trajectory-sandbox evaluations.
+# The upstream nousresearch/hermes-agent image documents SSH terminal
+# backend but ships without openssh-client. This adds it.
+FROM nousresearch/hermes-agent:latest
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && rm -rf /var/lib/apt/lists/*

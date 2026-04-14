@@ -457,7 +457,7 @@ class FixtureFactory:
 
         # Noise emails (HR, newsletter, misc)
         noise_subjects = [
-            (f"hr@{world.domain}", "Q2 performance review cycle — action needed",
+            (f"hr@{world.domain}", "Q2 performance review cycle - action needed",
              f"Hi {world.user.first_name}, please complete your self-review by Friday."),
             (f"newsletter@{world.domain}", f"{world.company} Weekly Digest",
              "Here's what happened this week across the company..."),

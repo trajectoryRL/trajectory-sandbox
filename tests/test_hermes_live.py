@@ -33,7 +33,7 @@ import docker
 SANDBOX_IMAGE = "ghcr.io/trajectoryrl/trajectory-sandbox:latest"
 HERMES_IMAGE = "ghcr.io/trajectoryrl/hermes-agent:latest"
 NETWORK_NAME = "hermes_live_test"
-EPISODE_TIMEOUT = 300  # 5 min for a single episode test
+EPISODE_TIMEOUT = 600  # 10 min per episode (matches production config)
 
 
 def main():

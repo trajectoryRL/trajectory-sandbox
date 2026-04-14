@@ -13,7 +13,7 @@ import sys
 import pytest
 import docker
 
-from trajectory_sandbox import SandboxConfig, EvalSession
+from trajrl_bench import SandboxConfig, EvalSession
 
 
 def docker_available() -> bool:
@@ -28,7 +28,7 @@ def docker_available() -> bool:
 def sandbox_image_available() -> bool:
     try:
         client = docker.from_env()
-        client.images.get("ghcr.io/trajectoryrl/trajectory-sandbox:latest")
+        client.images.get("ghcr.io/trajectoryrl/trajrl-bench:latest")
         return True
     except Exception:
         return False
@@ -47,7 +47,7 @@ class TestNetworkManager:
     """Test Docker network creation and teardown."""
 
     def test_create_and_destroy(self):
-        from trajectory_sandbox.network import NetworkManager
+        from trajrl_bench.network import NetworkManager
 
         client = docker.from_env()
         mgr = NetworkManager(client, prefix="test_eval")
@@ -74,7 +74,7 @@ class TestEvalSession:
 
     def test_session_lifecycle(self):
         config = SandboxConfig(
-            sandbox_image="ghcr.io/trajectoryrl/trajectory-sandbox:latest",
+            sandbox_image="ghcr.io/trajectoryrl/trajrl-bench:latest",
             harness_image="nousresearch/hermes-agent:latest",
             harness_timeout_s=30,
         )

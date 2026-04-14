@@ -8,12 +8,12 @@ This is the definitive end-to-end test: no simulations, no mocks.
 
 Requirements:
   - Docker running
-  - ghcr.io/trajectoryrl/trajectory-sandbox:latest built
+  - ghcr.io/trajectoryrl/trajrl-bench:latest built
   - nousresearch/hermes-agent:latest pulled
   - LLM_API_KEY in .env (for both Hermes and the judge)
 
 Usage:
-    cd trajectory-sandbox
+    cd trajrl-bench
     python tests/test_hermes_live.py
 """
 
@@ -30,7 +30,7 @@ from datetime import datetime
 import docker
 
 
-SANDBOX_IMAGE = "ghcr.io/trajectoryrl/trajectory-sandbox:latest"
+SANDBOX_IMAGE = "ghcr.io/trajectoryrl/trajrl-bench:latest"
 HERMES_IMAGE = "ghcr.io/trajectoryrl/hermes-agent:latest"
 NETWORK_NAME = "hermes_live_test"
 EPISODE_TIMEOUT = 600  # 10 min per episode (matches production config)
@@ -76,10 +76,10 @@ def main():
         sys.exit(0)
 
     # -- Generate fixtures --
-    from trajectory_sandbox.fixture_factory import FixtureFactory
-    from trajectory_sandbox.ssh_keys import generate_keypair
-    from trajectory_sandbox.episode_scorer import EpisodeScorer
-    from trajectory_sandbox.judge import EpisodeJudge
+    from trajrl_bench.fixture_factory import FixtureFactory
+    from trajrl_bench.ssh_keys import generate_keypair
+    from trajrl_bench.episode_scorer import EpisodeScorer
+    from trajrl_bench.judge import EpisodeJudge
 
     factory = FixtureFactory(epoch_seed="hermes_live_001", validator_salt="live_salt")
     world = factory.generate_world()

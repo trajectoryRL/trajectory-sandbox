@@ -1,6 +1,6 @@
 .PHONY: install build test test-unit test-docker test-hermes test-pressure clean
 
-SANDBOX_IMAGE := ghcr.io/trajectoryrl/trajectory-sandbox:latest
+SANDBOX_IMAGE := ghcr.io/trajectoryrl/trajrl-bench:latest
 HERMES_IMAGE  := ghcr.io/trajectoryrl/hermes-agent:latest
 
 # ---------------------------------------------------------------------------
@@ -54,6 +54,6 @@ test: test-unit
 # ---------------------------------------------------------------------------
 
 clean:
-	rm -rf __pycache__ .pytest_cache *.egg-info trajectory_sandbox/__pycache__ tests/__pycache__
+	rm -rf __pycache__ .pytest_cache *.egg-info trajrl_bench/__pycache__ tests/__pycache__
 	docker rm -f sandbox_hermes_test hermes_hermes_test hermes_vol_helper 2>/dev/null || true
 	docker network rm hermes_live_test 2>/dev/null || true

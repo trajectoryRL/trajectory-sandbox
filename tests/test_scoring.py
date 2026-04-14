@@ -5,8 +5,8 @@ fixture factory world + episode for realistic data.
 """
 
 import pytest
-from trajectory_sandbox.fixture_factory import FixtureFactory
-from trajectory_sandbox.evidence import IncidentResponseEvidence as IncidentResponseChecker, CheckResult
+from trajrl_bench.fixture_factory import FixtureFactory
+from trajrl_bench.evidence import IncidentResponseEvidence as IncidentResponseChecker, CheckResult
 
 
 @pytest.fixture

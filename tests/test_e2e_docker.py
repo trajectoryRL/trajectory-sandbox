@@ -21,7 +21,7 @@ import docker
 import httpx
 
 
-IMAGE = "ghcr.io/trajectoryrl/trajectory-sandbox:latest"
+IMAGE = "ghcr.io/trajectoryrl/trajrl-bench:latest"
 CONTAINER_NAME = "sandbox-e2e-test"
 HTTP_PORT = 18091  # avoid conflict with anything on 8090
 SSH_PORT = 10023
@@ -62,7 +62,7 @@ def main():
     # 1. Generate ephemeral keypair (same as EvalSession does)
     # ---------------------------------------------------------------
     print("1. Generating ephemeral SSH keypair...")
-    from trajectory_sandbox.ssh_keys import generate_keypair
+    from trajrl_bench.ssh_keys import generate_keypair
     keypair = generate_keypair()
     assert keypair.private_key.startswith("-----BEGIN OPENSSH PRIVATE KEY-----")
     assert "eval-session" in keypair.public_key
@@ -245,7 +245,7 @@ def main():
     # 5. Fixture factory integration
     # ---------------------------------------------------------------
     print("5. Testing fixture factory → mock services...")
-    from trajectory_sandbox.fixture_factory import FixtureFactory
+    from trajrl_bench.fixture_factory import FixtureFactory
 
     factory = FixtureFactory(epoch_seed="test_epoch_001", validator_salt="test_salt")
     world = factory.generate_world()
@@ -266,7 +266,7 @@ def main():
     # 6. Scoring integration
     # ---------------------------------------------------------------
     print("6. Testing scoring math...")
-    from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+    from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
     result = EvalSessionResult()
     for i, q in enumerate([0.45, 0.55, 0.72, 0.68]):

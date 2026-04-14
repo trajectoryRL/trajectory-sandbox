@@ -7,10 +7,10 @@ Three-container architecture:
   - Harness container: agent framework (ephemeral per episode)
 
 Usage:
-    from trajectory_sandbox import EvalSession, SandboxConfig
+    from trajrl_bench import EvalSession, SandboxConfig
 
     config = SandboxConfig(
-        sandbox_image="ghcr.io/trajectoryrl/trajectory-sandbox:latest",
+        sandbox_image="ghcr.io/trajectoryrl/trajrl-bench:latest",
         harness_image="nousresearch/hermes-agent:latest",
         llm_api_url="https://api.openai.com",
         llm_api_key="sk-...",
@@ -25,14 +25,14 @@ Usage:
 
 __version__ = "1.0.0"
 
-from trajectory_sandbox.types import (
+from trajrl_bench.types import (
     SandboxConfig,
     EpisodeResult,
     EvalSessionResult,
     ContainerInfo,
 )
-from trajectory_sandbox.session import EvalSession
-from trajectory_sandbox.fixture_factory import FixtureFactory
+from trajrl_bench.session import EvalSession
+from trajrl_bench.fixture_factory import FixtureFactory
 
 __all__ = [
     "SandboxConfig",

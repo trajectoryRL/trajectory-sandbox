@@ -7,10 +7,10 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch
 
-from trajectory_sandbox.episode_scorer import EpisodeScorer, ScoredEpisode
-from trajectory_sandbox.judge import EpisodeJudge, JudgeResult, CriterionResult
-from trajectory_sandbox.evidence import IncidentResponseEvidence
-from trajectory_sandbox.fixture_factory import FixtureFactory
+from trajrl_bench.episode_scorer import EpisodeScorer, ScoredEpisode
+from trajrl_bench.judge import EpisodeJudge, JudgeResult, CriterionResult
+from trajrl_bench.evidence import IncidentResponseEvidence
+from trajrl_bench.fixture_factory import FixtureFactory
 
 
 @pytest.fixture
@@ -180,7 +180,7 @@ class TestFullPipelineWithMockJudge:
         episodes = factory.generate_all_episodes(world)
         qualities = [0.45, 0.55, 0.72, 0.68]
 
-        from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+        from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
         result = EvalSessionResult()
         for i, (ep, q) in enumerate(zip(episodes, qualities)):

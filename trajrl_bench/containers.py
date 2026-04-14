@@ -27,7 +27,7 @@ from docker.models.containers import Container
 from docker.models.networks import Network
 from docker.types import LogConfig
 
-from trajectory_sandbox.types import SandboxConfig, ContainerInfo
+from trajrl_bench.types import SandboxConfig, ContainerInfo
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class SandboxContainer:
         The sandbox is fully offline — the internal network has no egress.
         SSH is exposed only within eval_net (no host port mapping needed).
         """
-        from trajectory_sandbox.ssh_keys import generate_keypair
+        from trajrl_bench.ssh_keys import generate_keypair
 
         self._keypair = generate_keypair()
         name = f"sandbox_{session_id}"

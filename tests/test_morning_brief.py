@@ -1,10 +1,10 @@
 """Tests for the morning_brief scenario: fixtures, evidence, judge criteria, scorer."""
 
 import pytest
-from trajectory_sandbox.fixture_factory import FixtureFactory, World, EpisodeFixtures, SCENARIOS
-from trajectory_sandbox.evidence import MorningBriefEvidence
-from trajectory_sandbox.judge import EpisodeJudge, SCENARIO_CRITERIA, CRITERIA_MORNING_BRIEF
-from trajectory_sandbox.episode_scorer import EpisodeScorer
+from trajrl_bench.fixture_factory import FixtureFactory, World, EpisodeFixtures, SCENARIOS
+from trajrl_bench.evidence import MorningBriefEvidence
+from trajrl_bench.judge import EpisodeJudge, SCENARIO_CRITERIA, CRITERIA_MORNING_BRIEF
+from trajrl_bench.episode_scorer import EpisodeScorer
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ class SandboxConfig:
     """Configuration for an evaluation session."""
 
     # Images
-    sandbox_image: str = "ghcr.io/trajectoryrl/trajectory-sandbox:latest"
+    sandbox_image: str = "ghcr.io/trajectoryrl/trajrl-bench:latest"
     harness_image: str = "nousresearch/hermes-agent:latest"
 
     # LLM API access (harness egress whitelist)

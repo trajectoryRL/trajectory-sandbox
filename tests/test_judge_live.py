@@ -49,9 +49,9 @@ def main():
     print(f"  API key:  {api_key[:12]}...{api_key[-4:]}\n")
 
     # 2. Generate fixtures
-    from trajectory_sandbox.fixture_factory import FixtureFactory
-    from trajectory_sandbox.evidence import IncidentResponseEvidence
-    from trajectory_sandbox.judge import EpisodeJudge
+    from trajrl_bench.fixture_factory import FixtureFactory
+    from trajrl_bench.evidence import IncidentResponseEvidence
+    from trajrl_bench.judge import EpisodeJudge
 
     factory = FixtureFactory(epoch_seed="live_test_001", validator_salt="test_salt")
     world = factory.generate_world()

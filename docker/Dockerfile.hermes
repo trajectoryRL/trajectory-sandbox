@@ -1,4 +1,4 @@
-# Hermes Agent with SSH client for trajectory-sandbox evaluations.
+# Hermes Agent with SSH client for trajrl-bench evaluations.
 # The upstream nousresearch/hermes-agent image documents SSH terminal
 # backend but ships without openssh-client. This adds it.
 FROM nousresearch/hermes-agent:latest

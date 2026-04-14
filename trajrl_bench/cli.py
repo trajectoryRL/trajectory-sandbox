@@ -1,16 +1,16 @@
-"""CLI entrypoints for trajectory-sandbox.
+"""CLI entrypoints for trajrl-bench.
 
 Used by the validator to run scenario logic inside the sandbox image
-without importing trajectory-sandbox as a Python dependency.
+without importing trajrl-bench as a Python dependency.
 
 The validator calls these via `docker run`:
 
     # Generate fixtures + instruction for an epoch
-    docker run --rm sandbox python -m trajectory_sandbox.cli generate \
+    docker run --rm sandbox python -m trajrl_bench.cli generate \
         --seed 12345 --salt abc123 --episodes 4
 
     # Score an episode given transcript + mock state
-    docker run --rm sandbox python -m trajectory_sandbox.cli score \
+    docker run --rm sandbox python -m trajrl_bench.cli score \
         --instruction /data/instruction.md \
         --transcript /data/transcript.txt \
         --state /data/state.json \
@@ -29,7 +29,7 @@ import sys
 
 def cmd_generate(args):
     """Generate world + fixtures for N episodes. Output JSON to stdout."""
-    from trajectory_sandbox.fixture_factory import FixtureFactory, SCENARIOS
+    from trajrl_bench.fixture_factory import FixtureFactory, SCENARIOS
 
     scenario = args.scenario
     if scenario not in SCENARIOS:
@@ -73,7 +73,7 @@ def cmd_generate(args):
         "seed": world.seed,
     }
 
-    from trajectory_sandbox import __version__
+    from trajrl_bench import __version__
     output = {
         "version": __version__,
         "scenario": scenario,
@@ -86,9 +86,9 @@ def cmd_generate(args):
 
 def cmd_score(args):
     """Score an episode. Reads files, calls LLM judge, outputs JSON to stdout."""
-    from trajectory_sandbox.fixture_factory import World, Persona, EpisodeFixtures
-    from trajectory_sandbox.episode_scorer import EpisodeScorer
-    from trajectory_sandbox.judge import EpisodeJudge
+    from trajrl_bench.fixture_factory import World, Persona, EpisodeFixtures
+    from trajrl_bench.episode_scorer import EpisodeScorer
+    from trajrl_bench.judge import EpisodeJudge
 
     # Load inputs
     with open(args.world) as f:
@@ -146,7 +146,7 @@ def cmd_score(args):
     scorer = EpisodeScorer.for_scenario(scenario, world, episode, judge=judge)
     scored = scorer.score_detailed(transcript, mock_state)
 
-    from trajectory_sandbox import __version__
+    from trajrl_bench import __version__
     output = {
         "version": __version__,
         "quality": scored.quality,
@@ -162,15 +162,15 @@ def cmd_score(args):
 
 def cmd_scenarios(args):
     """List available scenarios."""
-    from trajectory_sandbox.fixture_factory import SCENARIOS
-    from trajectory_sandbox import __version__
+    from trajrl_bench.fixture_factory import SCENARIOS
+    from trajrl_bench import __version__
     json.dump({"version": __version__, "scenarios": SCENARIOS}, sys.stdout, indent=2)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="trajectory_sandbox.cli",
-        description="CLI for trajectory-sandbox (used by validator via docker run)",
+        prog="trajrl_bench.cli",
+        description="CLI for trajrl-bench (used by validator via docker run)",
     )
     sub = parser.add_subparsers(dest="command")
 

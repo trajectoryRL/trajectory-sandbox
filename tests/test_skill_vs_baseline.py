@@ -11,7 +11,7 @@ The skilled agent's simulated behavior follows the SKILL.md guidance;
 the baseline stumbles through without strategy.
 
 Usage:
-    cd trajectory-sandbox
+    cd trajrl-bench
     python tests/test_skill_vs_baseline.py
 
 Requires: LLM_API_KEY in .env (uses real LLM judge calls)
@@ -164,10 +164,10 @@ def main():
     print(f"  Model: {model}")
     print(f"  Key:   {api_key[:12]}...\n")
 
-    from trajectory_sandbox.fixture_factory import FixtureFactory
-    from trajectory_sandbox.episode_scorer import EpisodeScorer
-    from trajectory_sandbox.judge import EpisodeJudge
-    from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+    from trajrl_bench.fixture_factory import FixtureFactory
+    from trajrl_bench.episode_scorer import EpisodeScorer
+    from trajrl_bench.judge import EpisodeJudge
+    from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
     # Create output dir
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -1,4 +1,4 @@
-# trajectory-sandbox
+# trajrl-bench
 
 SSH sandbox orchestrator for AI agent evaluations. Agents SSH into an isolated Docker container with mock services (email, Slack, Notion, calendar, Gitea), execute tasks, and get scored by an LLM judge.
 
@@ -7,8 +7,8 @@ Used by [TrajectoryRL](https://github.com/trajectoryRL/trajectoryRL) (Bittensor 
 ## Try it in 5 minutes
 
 ```bash
-git clone https://github.com/trajectoryRL/trajectory-sandbox.git
-cd trajectory-sandbox
+git clone https://github.com/trajectoryRL/trajrl-bench.git
+cd trajrl-bench
 
 # 1. Install
 pip install -e ".[dev]"
@@ -108,18 +108,18 @@ The validator does NOT pip-install this package. Instead it calls the CLI via `d
 ```bash
 # List available scenarios
 docker run --rm --entrypoint python sandbox:latest \
-  -m trajectory_sandbox.cli scenarios
+  -m trajrl_bench.cli scenarios
 
 # Generate fixtures for an epoch
 docker run --rm --entrypoint python sandbox:latest \
-  -m trajectory_sandbox.cli generate --seed 12345 --salt abc --episodes 4
+  -m trajrl_bench.cli generate --seed 12345 --salt abc --episodes 4
 
 # Score an episode (real LLM judge call)
 docker run --rm --entrypoint python \
   -v /tmp/data:/data:ro \
   -e LLM_API_KEY=... -e LLM_BASE_URL=... -e LLM_MODEL=... \
   sandbox:latest \
-  -m trajectory_sandbox.cli score \
+  -m trajrl_bench.cli score \
   --world /data/world.json --episode /data/episode.json \
   --transcript /data/transcript.txt --state /data/state.json
 ```
@@ -144,7 +144,7 @@ State is backed by SQLite with snapshot/restore between episodes.
 ## Package structure
 
 ```
-trajectory_sandbox/         # Python package
+trajrl_bench/         # Python package
   types.py                  # SandboxConfig, EpisodeResult, EvalSessionResult
   session.py                # EvalSession (full lifecycle orchestrator)
   containers.py             # SandboxContainer, HarnessContainer
@@ -157,7 +157,7 @@ trajectory_sandbox/         # Python package
   cli.py                    # CLI for docker-run integration (generate, score, scenarios)
 
 docker/
-  Dockerfile.sandbox        # Mock services + SSH + gosu hardening + trajectory_sandbox package
+  Dockerfile.sandbox        # Mock services + SSH + gosu hardening + trajrl_bench package
   Dockerfile.hermes         # Hermes Agent + openssh-client
   mock_services/server.py   # FastAPI server (all services)
   mock_services/state_store.py  # SQLite backend
@@ -178,8 +178,8 @@ docker/
 The sandbox version drives the validator's **scoring version** for consensus:
 
 ```
-trajectory-sandbox v1.0.0  →  scoring_version = 1
-trajectory-sandbox v2.0.0  →  scoring_version = 2
+trajrl-bench v1.0.0  →  scoring_version = 1
+trajrl-bench v2.0.0  →  scoring_version = 2
 ```
 
 Validators on different major versions will not mix results during consensus aggregation.
@@ -187,7 +187,7 @@ Validators on different major versions will not mix results during consensus agg
 ### Release flow
 
 ```bash
-# 1. Bump version in trajectory_sandbox/__init__.py and pyproject.toml
+# 1. Bump version in trajrl_bench/__init__.py and pyproject.toml
 # 2. Commit and push
 git tag v1.0.0
 git push --tags
@@ -201,13 +201,13 @@ git push --tags
 | Push to main | test + docker-build + docker-publish | `:latest`, `:sha` |
 | Tag `v*` | test + docker-build + docker-release | `:v1.0.0`, `:v1.0`, `:v1`, `:latest` |
 
-Both `trajectory-sandbox` and `hermes-agent` images are built and pushed together.
+Both `trajrl-bench` and `hermes-agent` images are built and pushed together.
 
 ### How validators get updates
 
 ```
 Validator starts eval cycle
-  → docker pull ghcr.io/trajectoryrl/trajectory-sandbox:latest
+  → docker pull ghcr.io/trajectoryrl/trajrl-bench:latest
   → docker pull ghcr.io/trajectoryrl/hermes-agent:latest
   → docker run sandbox scenarios → {"version": "1.0.0", "scenarios": [...]}
   → scoring_version = major version (1)

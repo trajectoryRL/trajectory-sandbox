@@ -55,10 +55,10 @@ def main():
     print(f"  Model: {model}")
     print(f"  Key:   {api_key[:12]}...{api_key[-4:]}\n")
 
-    from trajectory_sandbox.fixture_factory import FixtureFactory
-    from trajectory_sandbox.episode_scorer import EpisodeScorer
-    from trajectory_sandbox.judge import EpisodeJudge
-    from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+    from trajrl_bench.fixture_factory import FixtureFactory
+    from trajrl_bench.episode_scorer import EpisodeScorer
+    from trajrl_bench.judge import EpisodeJudge
+    from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
     # Create output dir
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

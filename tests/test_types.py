@@ -1,6 +1,6 @@
 """Unit tests for scoring logic — no Docker required."""
 
-from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
 
 def _make_result(qualities: list[float]) -> EvalSessionResult:

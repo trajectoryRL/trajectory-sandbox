@@ -42,7 +42,7 @@ jobs:
 
       - name: Build sandbox image
         run: |
-          docker build -f docker/Dockerfile.sandbox -t ghcr.io/trajectoryrl/trajectory-sandbox:test .
+          docker build -f docker/Dockerfile.sandbox -t ghcr.io/trajectoryrl/trajrl-bench:test .
 
       - name: Build hermes image
         run: |
@@ -50,8 +50,8 @@ jobs:
 
       - name: Verify sandbox CLI
         run: |
-          docker run --rm --entrypoint python ghcr.io/trajectoryrl/trajectory-sandbox:test \
-            -m trajectory_sandbox.cli scenarios
+          docker run --rm --entrypoint python ghcr.io/trajectoryrl/trajrl-bench:test \
+            -m trajrl_bench.cli scenarios
 
       - name: Verify hermes SSH
         run: |
@@ -82,8 +82,8 @@ jobs:
           file: docker/Dockerfile.sandbox
           push: true
           tags: |
-            ghcr.io/trajectoryrl/trajectory-sandbox:latest
-            ghcr.io/trajectoryrl/trajectory-sandbox:${{ github.sha }}
+            ghcr.io/trajectoryrl/trajrl-bench:latest
+            ghcr.io/trajectoryrl/trajrl-bench:${{ github.sha }}
 
       - name: Build and push hermes image
         uses: docker/build-push-action@v5
@@ -131,10 +131,10 @@ jobs:
           file: docker/Dockerfile.sandbox
           push: true
           tags: |
-            ghcr.io/trajectoryrl/trajectory-sandbox:latest
-            ghcr.io/trajectoryrl/trajectory-sandbox:${{ steps.version.outputs.tag }}
-            ghcr.io/trajectoryrl/trajectory-sandbox:${{ steps.version.outputs.minor }}
-            ghcr.io/trajectoryrl/trajectory-sandbox:${{ steps.version.outputs.major }}
+            ghcr.io/trajectoryrl/trajrl-bench:latest
+            ghcr.io/trajectoryrl/trajrl-bench:${{ steps.version.outputs.tag }}
+            ghcr.io/trajectoryrl/trajrl-bench:${{ steps.version.outputs.minor }}
+            ghcr.io/trajectoryrl/trajrl-bench:${{ steps.version.outputs.major }}
 
       - name: Build and push hermes image (versioned)
         uses: docker/build-push-action@v5

@@ -19,9 +19,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from trajectory_sandbox.evidence import IncidentResponseEvidence, MorningBriefEvidence, EvidenceItem
-from trajectory_sandbox.judge import EpisodeJudge, JudgeResult
-from trajectory_sandbox.fixture_factory import World, EpisodeFixtures
+from trajrl_bench.evidence import IncidentResponseEvidence, MorningBriefEvidence, EvidenceItem
+from trajrl_bench.judge import EpisodeJudge, JudgeResult
+from trajrl_bench.fixture_factory import World, EpisodeFixtures
 
 logger = logging.getLogger(__name__)
 

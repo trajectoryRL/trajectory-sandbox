@@ -9,7 +9,7 @@ State-based checks serve as grounding evidence for the judge,
 not as the scoring mechanism itself. (spec §Scoring, §6a)
 
 Usage:
-    from trajectory_sandbox.evidence import IncidentResponseEvidence
+    from trajrl_bench.evidence import IncidentResponseEvidence
 
     extractor = IncidentResponseEvidence(world=world, episode=episode)
     evidence = extractor.extract(state)
@@ -23,7 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from trajectory_sandbox.fixture_factory import World, EpisodeFixtures, _ACQUISITION_TARGETS
+from trajrl_bench.fixture_factory import World, EpisodeFixtures, _ACQUISITION_TARGETS
 
 
 @dataclass

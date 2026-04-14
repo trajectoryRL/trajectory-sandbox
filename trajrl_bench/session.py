@@ -33,9 +33,9 @@ from typing import Any
 
 import docker
 
-from trajectory_sandbox.types import SandboxConfig, EpisodeResult, EvalSessionResult, ContainerInfo
-from trajectory_sandbox.network import NetworkManager
-from trajectory_sandbox.containers import SandboxContainer, HarnessContainer
+from trajrl_bench.types import SandboxConfig, EpisodeResult, EvalSessionResult, ContainerInfo
+from trajrl_bench.network import NetworkManager
+from trajrl_bench.containers import SandboxContainer, HarnessContainer
 
 logger = logging.getLogger(__name__)
 

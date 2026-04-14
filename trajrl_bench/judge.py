@@ -15,7 +15,7 @@ Why 100% LLM judge:
   - Quality dimensions (tone, reasoning, methodology) need judgment
 
 Usage:
-    from trajectory_sandbox.judge import EpisodeJudge
+    from trajrl_bench.judge import EpisodeJudge
 
     judge = EpisodeJudge(api_key="...", model="claude-sonnet-4-20250514")
     result = await judge.score_episode(
@@ -35,7 +35,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from trajectory_sandbox.fixture_factory import World
+from trajrl_bench.fixture_factory import World
 
 logger = logging.getLogger(__name__)
 

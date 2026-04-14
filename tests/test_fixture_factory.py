@@ -1,6 +1,6 @@
 """Tests for deterministic fixture generation."""
 
-from trajectory_sandbox.fixture_factory import FixtureFactory
+from trajrl_bench.fixture_factory import FixtureFactory
 
 
 class TestFixtureFactory:

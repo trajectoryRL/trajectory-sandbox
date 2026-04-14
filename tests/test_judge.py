@@ -6,12 +6,12 @@ No API key needed — tests use dry_run mode and mock LLM responses.
 import json
 import pytest
 
-from trajectory_sandbox.judge import (
+from trajrl_bench.judge import (
     EpisodeJudge, JudgeResult, CriterionResult,
     SYSTEM_PROMPT, CRITERIA_INCIDENT_RESPONSE,
 )
-from trajectory_sandbox.evidence import IncidentResponseEvidence
-from trajectory_sandbox.fixture_factory import FixtureFactory
+from trajrl_bench.evidence import IncidentResponseEvidence
+from trajrl_bench.fixture_factory import FixtureFactory
 
 
 @pytest.fixture

@@ -186,7 +186,7 @@ def test_mock_services():
 
 def test_scoring():
     """Test split-half delta scoring with spec examples."""
-    from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+    from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
     print("\n=== Scoring Test ===")
 
@@ -220,7 +220,7 @@ def test_scoring():
 
 def test_simulated_session():
     """Simulate a 4-episode flow without Docker."""
-    from trajectory_sandbox.types import EvalSessionResult, EpisodeResult
+    from trajrl_bench.types import EvalSessionResult, EpisodeResult
 
     print("\n=== Simulated 4-Episode Session ===")
 

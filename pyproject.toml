@@ -3,7 +3,7 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "trajectory-sandbox"
+name = "trajrl-bench"
 version = "1.0.0"
 description = "SSH sandbox orchestrator for TrajectoryRL Season 1 evaluations"
 requires-python = ">=3.10"
@@ -26,7 +26,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["trajectory_sandbox*"]
+include = ["trajrl_bench*"]
 
 [tool.ruff]
 line-length = 100

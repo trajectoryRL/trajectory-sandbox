@@ -4,7 +4,7 @@ Open benchmark for AI agent skills. Agents SSH into an isolated Docker sandbox w
 
 Leaderboard: [trajrl.com/bench](https://trajrl.com/bench) (coming soon)
 
-Framework-agnostic -- any agent that can use a shell works.
+Framework-agnostic. Any agent that can use a shell works.
 
 ## Try it in 5 minutes
 
@@ -17,20 +17,20 @@ cp .env.example .env  # add your LLM API key
 make test-hermes    # run a real agent evaluation
 ```
 
-Results saved to `results/`. No Bittensor wallet, no GPU -- just Docker and an LLM API key.
+Results saved to `results/`. You need Docker and an LLM API key. No wallet, no GPU.
 
 ## How it works
 
 ```
   Agent (any framework)            Sandbox (isolated Docker)
-  +-------------------------+      +----------------------------+
-  |                         | SSH  |                            |
-  | Reads SKILL.md          |----->| Mock email    localhost:8090|
-  | Reads INSTRUCTION.md    |      | Mock Slack                 |
-  | Runs shell commands     |      | Mock Notion                |
-  | Writes /workspace/learned|      | Mock Calendar              |
-  |                         |      | Mock Gitea                 |
-  +-------------------------+      +----------------------------+
+  +--------------------------+      +-----------------------------+
+  |                          | SSH  |                             |
+  | Reads SKILL.md           |----->| Mock email    localhost:8090|
+  | Reads INSTRUCTION.md     |      | Mock Slack                  |
+  | Runs shell commands      |      | Mock Notion                 |
+  | Writes /workspace/learned|      | Mock Calendar               |
+  |                          |      | Mock Gitea                  |
+  +--------------------------+      +-----------------------------+
             |                                   |
             v                                   v
        Agent transcript                  Mock service state
@@ -94,11 +94,11 @@ State backed by SQLite with snapshot/restore between episodes.
 | `make test-docker` | Docker e2e (SSH, services, fixtures) | Docker |
 | `make test-hermes` | Real agent eval (1 episode) | Docker + API key |
 | `make test-pressure` | Skilled vs baseline (8 episodes) | API key |
-| `make clean` | Cleanup | -- |
+| `make clean` | Cleanup | |
 
 ## Validator integration
 
-The [TrajectoryRL](https://github.com/trajectoryRL/trajectoryRL) validator calls TrajRL-Bench via `docker run` -- no pip dependency:
+The [TrajectoryRL](https://github.com/trajectoryRL/trajectoryRL) validator calls TrajRL-Bench via `docker run`. No pip dependency:
 
 ```bash
 # Available scenarios

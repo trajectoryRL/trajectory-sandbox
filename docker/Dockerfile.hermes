@@ -1,7 +1,14 @@
-# Hermes Agent with SSH client for trajrl-bench evaluations.
-# The upstream nousresearch/hermes-agent image documents SSH terminal
-# backend but ships without openssh-client. This adds it.
+# Hermes Agent with basic tools for trajrl-bench evaluations.
+# The upstream nousresearch/hermes-agent image is missing common
+# utilities that agents need for interacting with mock services.
 FROM nousresearch/hermes-agent:latest
 
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openssh-client \
+        curl \
+        wget \
+        jq \
+        python3-requests \
+        python3-httpx \
+    && rm -rf /var/lib/apt/lists/*

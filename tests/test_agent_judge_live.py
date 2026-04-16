@@ -156,15 +156,12 @@ def main():
     except ImportError:
         pass
 
-    api_key = (os.environ.get("LLM_API_KEY")
-               or os.environ.get("CLAWBENCH_LLM_API_KEY", ""))
+    api_key = os.environ.get("LLM_API_KEY", "")
     api_base = os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1")
-    _raw_model = os.environ.get("LLM_MODEL") or os.environ.get(
-        "CLAWBENCH_DEFAULT_MODEL", "z-ai/glm-5.1")
-    model = _raw_model.removeprefix("openrouter/")
+    model = os.environ.get("LLM_MODEL", "z-ai/glm-5.1").removeprefix("openrouter/")
 
     if not api_key:
-        print("SKIP: No LLM_API_KEY or CLAWBENCH_LLM_API_KEY set")
+        print("SKIP: LLM_API_KEY not set")
         sys.exit(0)
 
     print(f"  Model:  {model}")

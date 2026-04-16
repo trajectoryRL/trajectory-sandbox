@@ -46,8 +46,8 @@ def main():
     except ImportError:
         pass
 
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("CLAWBENCH_LLM_API_KEY", "")
-    model = os.environ.get("LLM_MODEL") or os.environ.get("CLAWBENCH_DEFAULT_MODEL", "")
+    api_key = os.environ.get("LLM_API_KEY", "")
+    model = os.environ.get("LLM_MODEL", "")
     if not api_key:
         print("SKIP: No LLM_API_KEY set")
         sys.exit(0)

@@ -1,8 +1,7 @@
 """Stateful mock services for the Season 1 sandbox.
 
-Unlike clawbench's mock_tools (which returns static fixtures via tool-call API),
-this server exposes real HTTP endpoints that the agent interacts with via curl/SDK.
-Services accept mutations and the validator inspects final state for scoring.
+HTTP endpoints that the agent interacts with via curl/SDK. Services accept
+mutations and the judge inspects final state for scoring.
 
 State is backed by SQLite with snapshot/restore for deterministic resets between
 episodes (adopted from ClawsBench pattern, see spec §6a).

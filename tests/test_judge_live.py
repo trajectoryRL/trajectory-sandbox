@@ -2,16 +2,16 @@
 """Live LLM judge test — calls real API, scores a simulated episode.
 
 Reads API config from environment or .env file:
-    CLAWBENCH_LLM_API_KEY=sk-or-...
-    CLAWBENCH_LLM_BASE_URL=https://openrouter.ai/api/v1
-    CLAWBENCH_DEFAULT_MODEL=openrouter/z-ai/glm-5.1
+    LLM_API_KEY=sk-or-...
+    LLM_BASE_URL=https://openrouter.ai/api/v1
+    LLM_MODEL=z-ai/glm-5.1
 
 Usage:
     # With .env in current dir or parent:
     python tests/test_judge_live.py
 
     # Or pass directly:
-    CLAWBENCH_LLM_API_KEY=sk-... python tests/test_judge_live.py
+    LLM_API_KEY=sk-... python tests/test_judge_live.py
 """
 
 import json
@@ -35,9 +35,9 @@ def main():
     except ImportError:
         pass
 
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("CLAWBENCH_LLM_API_KEY", "")
-    api_base = os.environ.get("LLM_BASE_URL") or os.environ.get("CLAWBENCH_LLM_BASE_URL", "")
-    model = os.environ.get("LLM_MODEL") or os.environ.get("CLAWBENCH_DEFAULT_MODEL", "")
+    api_key = os.environ.get("LLM_API_KEY", "")
+    api_base = os.environ.get("LLM_BASE_URL", "")
+    model = os.environ.get("LLM_MODEL", "")
 
     if not api_key:
         print("SKIP: No LLM_API_KEY found in env or .env files")

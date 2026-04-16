@@ -184,10 +184,9 @@ class EpisodeJudge:
 
     Configuration priority:
       1. Constructor args
-      2. Environment variables (LLM_API_KEY, LLM_BASE_URL, LLM_MODEL)
-      3. Fallback: CLAWBENCH_* env vars (backward compat with validator .env)
-      4. .env file in cwd or parent directories
-      5. Defaults
+      2. Environment variables: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+      3. .env file in cwd or parent directories
+      4. Defaults
     """
 
     def __init__(
@@ -204,15 +203,12 @@ class EpisodeJudge:
             pass
 
         import os
-        self.api_key = (api_key
-                        or os.environ.get("LLM_API_KEY")
-                        or os.environ.get("CLAWBENCH_LLM_API_KEY", ""))
+        self.api_key = api_key or os.environ.get("LLM_API_KEY", "")
         self.api_base = (api_base
-                         or os.environ.get("LLM_BASE_URL")
-                         or os.environ.get("CLAWBENCH_LLM_BASE_URL", "https://openrouter.ai/api/v1"))
+                         or os.environ.get("LLM_BASE_URL",
+                                           "https://openrouter.ai/api/v1"))
         self.model = (model
-                      or os.environ.get("LLM_MODEL")
-                      or os.environ.get("CLAWBENCH_DEFAULT_MODEL", "z-ai/glm-5.1"))
+                      or os.environ.get("LLM_MODEL", "z-ai/glm-5.1"))
 
     def score_episode(
         self,

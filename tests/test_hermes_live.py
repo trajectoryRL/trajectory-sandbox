@@ -51,7 +51,7 @@ def main():
     except ImportError:
         pass
 
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("CLAWBENCH_LLM_API_KEY", "")
+    api_key = os.environ.get("LLM_API_KEY", "")
     api_base = os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1")
     model = os.environ.get("LLM_MODEL", "z-ai/glm-5.1")
 

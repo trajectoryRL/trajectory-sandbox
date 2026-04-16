@@ -155,7 +155,7 @@ def main():
     except ImportError:
         pass
 
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("CLAWBENCH_LLM_API_KEY", "")
+    api_key = os.environ.get("LLM_API_KEY", "")
     model = os.environ.get("LLM_MODEL", "z-ai/glm-5.1")
     if not api_key:
         print("SKIP: No LLM_API_KEY set")

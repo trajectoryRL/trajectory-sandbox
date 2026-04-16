@@ -39,8 +39,14 @@ test-docker:
 	python tests/test_e2e_docker.py
 
 # Needs Docker + both images + LLM_API_KEY in .env
+# Legacy: uses fixed LLM judge (EpisodeScorer / EpisodeJudge)
 test-hermes:
 	python tests/test_hermes_live.py
+
+# Needs Docker + both images + LLM_API_KEY in .env
+# Current: three-container agent-judge architecture
+test-agent-judge:
+	python tests/test_agent_judge_live.py
 
 # Needs LLM_API_KEY in .env (no Docker)
 test-pressure:
@@ -56,4 +62,5 @@ test: test-unit
 clean:
 	rm -rf __pycache__ .pytest_cache *.egg-info trajrl_bench/__pycache__ tests/__pycache__
 	docker rm -f sandbox_hermes_test hermes_hermes_test hermes_vol_helper 2>/dev/null || true
-	docker network rm hermes_live_test 2>/dev/null || true
+	docker rm -f sandbox_ajt testee_ajt judge_ajt 2>/dev/null || true
+	docker network rm hermes_live_test agent_judge_live_test 2>/dev/null || true

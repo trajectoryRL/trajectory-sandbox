@@ -3,6 +3,11 @@
 # utilities that agents need for interacting with mock services.
 FROM nousresearch/hermes-agent:latest
 
+LABEL org.opencontainers.image.title="trajrl-hermes-agent"
+LABEL org.opencontainers.image.description="Hermes Agent + curl/jq/requests for trajrl-bench S1 evaluations"
+LABEL org.opencontainers.image.version="3.1.0"
+LABEL org.opencontainers.image.source="https://github.com/trajectoryRL/trajrl-bench"
+
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-client \

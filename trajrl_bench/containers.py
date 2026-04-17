@@ -212,6 +212,16 @@ class SandboxContainer:
         """Load the episode's INSTRUCTION.md into the sandbox."""
         self.load_fixtures({"INSTRUCTION.md": instruction_md})
 
+    def load_environment_md(self, environment_md: str) -> None:
+        """Load the scenario's ENVIRONMENT.md into the sandbox.
+
+        ENVIRONMENT.md is the shared environment contract (services, endpoints,
+        filesystem layout) — provided by the harness so every miner competes on
+        judgment rather than boilerplate. Loaded once per session; same content
+        across all episodes.
+        """
+        self.load_fixtures({"ENVIRONMENT.md": environment_md})
+
     def reset_mock_state(self) -> None:
         """Reset mock service state between episodes.
 
@@ -464,8 +474,10 @@ class HarnessContainer:
     @staticmethod
     def _default_prompt() -> str:
         return (
-            "Read /workspace/SKILL.md for your instructions and domain knowledge.\n"
+            "Read /workspace/ENVIRONMENT.md to understand the sandbox "
+            "(services, endpoints, filesystem layout).\n"
+            "Read /workspace/SKILL.md for your skill pack (strategy, process, rules).\n"
             "Read /workspace/INSTRUCTION.md for this episode's task.\n"
             "After completing the task, write reflections to /workspace/learned/.\n"
-            "Do not modify SKILL.md."
+            "Do not modify SKILL.md or ENVIRONMENT.md."
         )

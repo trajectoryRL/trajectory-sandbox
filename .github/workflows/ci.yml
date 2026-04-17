@@ -2,10 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
 
 jobs:
   test:
@@ -57,49 +54,9 @@ jobs:
         run: |
           docker run --rm --entrypoint ssh ghcr.io/trajectoryrl/hermes-agent:test -V
 
-  # Publish on main push: latest + sha tags
-  docker-publish:
-    needs: [test, docker-build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push sandbox image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.sandbox
-          push: true
-          tags: |
-            ghcr.io/trajectoryrl/trajrl-bench:latest
-            ghcr.io/trajectoryrl/trajrl-bench:${{ github.sha }}
-
-      - name: Build and push hermes image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.hermes
-          push: true
-          tags: |
-            ghcr.io/trajectoryrl/hermes-agent:latest
-            ghcr.io/trajectoryrl/hermes-agent:${{ github.sha }}
-
-  # Publish on tag push: versioned tags (v1.0.0 → :v1, :v1.0, :v1.0.0)
   docker-release:
     needs: [test, docker-build]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       packages: write
 

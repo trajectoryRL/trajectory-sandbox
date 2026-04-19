@@ -213,13 +213,7 @@ def main():
             },
         }
 
-        hermes_prompt = (
-            "Read /workspace/SKILL.md for your approach and self-improvement strategy. "
-            "Read /workspace/INSTRUCTION.md for this episode's task. "
-            "Check /workspace/learned/ for any notes from prior episodes. "
-            "Services are available at http://localhost:8090 -- start with /health to discover them. "
-            "Do not modify SKILL.md."
-        )
+        hermes_prompt = "Read /workspace/INSTRUCTION.md and follow its instructions."
         safe_prompt = hermes_prompt.replace("'", "'\\''")
 
         startup_script = f"""#!/bin/bash

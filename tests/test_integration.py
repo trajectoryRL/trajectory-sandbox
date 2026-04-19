@@ -83,6 +83,9 @@ class TestEvalSession:
             # Load SKILL.md
             session.load_skill("# Test SKILL\n\nJust echo hello.\n")
 
+            # Load ENVIRONMENT.md (shared environment contract)
+            session.load_environment("# Environment\n\nTest sandbox.\n")
+
             # Run one episode
             result = session.run_episode(
                 episode_index=0,

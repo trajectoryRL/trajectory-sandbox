@@ -283,13 +283,8 @@ def main():
         print(f"\n4. Starting testee agent (Hermes, model={model})...")
         testee_prompt = (
             "SSH into the sandbox: `ssh -o StrictHostKeyChecking=no "
-            "-i /tmp/id_ed25519 agent@sandbox`. "
-            "Everything you need is there: shell, filesystem, tools. "
-            "Read /workspace/SKILL.md for your approach. "
-            "Read /workspace/INSTRUCTION.md for this episode's task. "
-            "Check /workspace/learned/ for notes from prior episodes. "
-            "Explore the environment and solve the task. "
-            "Do not modify SKILL.md."
+            "-i /tmp/id_ed25519 agent@sandbox`. Then read "
+            "/workspace/INSTRUCTION.md and follow its instructions."
         )
         testee = client.containers.create(
             HERMES_IMAGE,

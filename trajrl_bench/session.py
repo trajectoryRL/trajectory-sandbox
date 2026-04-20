@@ -59,6 +59,45 @@ INSTRUCTION_PREAMBLE = (
 _JUDGE_TRANSCRIPT_CAP = 8000
 
 
+def _criterion_ratios(evaluation: dict) -> dict[str, float]:
+    """Per-criterion normalised scores from a judge evaluation.
+
+    Returns `{criterion_name: 0.0–1.0}`. Handles the same three schema
+    shapes `_extract_quality` does (dict of floats / list of objects /
+    dict of objects), dropping any entry that can't be normalised.
+    Empty dict if `criteria` is missing / unusable.
+    """
+    crit = evaluation.get("criteria")
+    out: dict[str, float] = {}
+
+    def _as_ratio(obj) -> float | None:
+        if isinstance(obj, (int, float)):
+            return max(0.0, min(1.0, float(obj)))
+        if isinstance(obj, dict):
+            s = obj.get("score")
+            m = obj.get("max", 1)
+            if isinstance(s, (int, float)) and isinstance(m, (int, float)) and m > 0:
+                return max(0.0, min(1.0, float(s) / float(m)))
+        return None
+
+    if isinstance(crit, dict):
+        for name, val in crit.items():
+            r = _as_ratio(val)
+            if r is not None:
+                out[str(name)] = r
+    elif isinstance(crit, list):
+        for c in crit:
+            if not isinstance(c, dict):
+                continue
+            name = c.get("name")
+            if not name:
+                continue
+            r = _as_ratio(c)
+            if r is not None:
+                out[str(name)] = r
+    return out
+
+
 def _extract_quality(evaluation: dict) -> float:
     """Pull a 0.0–1.0 quality score out of the judge's evaluation.json.
 

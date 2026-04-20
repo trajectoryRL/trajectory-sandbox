@@ -40,7 +40,7 @@ import yaml
 import docker
 
 from trajrl_bench.fixture_factory import FixtureFactory
-from trajrl_bench.session import EvalSession
+from trajrl_bench.session import EvalSession, _criterion_ratios
 from trajrl_bench.types import SandboxConfig
 
 logger = logging.getLogger(__name__)
@@ -285,30 +285,53 @@ def _run_cell(
         if ep.evaluation is not None:
             (ep_dir / "evaluation.json").write_text(json.dumps(ep.evaluation, indent=2))
 
+    # Pull the judge's breakdown (criteria / summary / strengths / weaknesses)
+    # up from each episode's evaluation.json so cell.json is inspectable
+    # without chasing into per-episode directories.
+    per_episode: list[dict] = []
+    criteria_per_ep: list[dict[str, float]] = []
+    for ep in result.episodes:
+        evaluation = ep.evaluation or {}
+        ratios = _criterion_ratios(evaluation)
+        criteria_per_ep.append(ratios)
+        per_episode.append({
+            "index": ep.episode_index,
+            "quality": ep.quality,
+            "duration_s": ep.duration_s,
+            "timed_out": ep.timed_out,
+            "error": ep.error,
+            "criteria":   ratios,
+            "summary":    evaluation.get("summary") or "",
+            "strengths":  evaluation.get("strengths") or [],
+            "weaknesses": evaluation.get("weaknesses") or [],
+        })
+
+    # Mean of each criterion across episodes where it was scored. A
+    # criterion scored in 3 of 4 episodes is averaged over those 3; cells
+    # with zero usable scores for a criterion simply drop it.
+    criteria_means: dict[str, float] = {}
+    all_names = {name for ratios in criteria_per_ep for name in ratios}
+    for name in sorted(all_names):
+        vals = [ratios[name] for ratios in criteria_per_ep if name in ratios]
+        if vals:
+            criteria_means[name] = sum(vals) / len(vals)
+
     cell_result = {
         "cell_id": cell_id,
         "harness": harness.name,
         "skill": skill.name,
         "scenario": scenario,
-        "final_score": result.final_score,
-        "mean_quality": result.mean_quality,
-        "early_mean": result.early_mean,
-        "late_mean": result.late_mean,
-        "delta": result.delta,
+        "final_score":    result.final_score,
+        "mean_quality":   result.mean_quality,
+        "early_mean":     result.early_mean,
+        "late_mean":      result.late_mean,
+        "delta":          result.delta,
         "learning_bonus": result.learning_bonus,
-        "episodes": [
-            {
-                "index": ep.episode_index,
-                "quality": ep.quality,
-                "duration_s": ep.duration_s,
-                "timed_out": ep.timed_out,
-                "error": ep.error,
-            }
-            for ep in result.episodes
-        ],
-        "error": None,
-        "started_at": t_start.isoformat(),
-        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "criteria_means": criteria_means,
+        "episodes":       per_episode,
+        "error":          None,
+        "started_at":     t_start.isoformat(),
+        "completed_at":   datetime.now(timezone.utc).isoformat(),
     }
     (cell_dir / "cell.json").write_text(json.dumps(cell_result, indent=2))
     logger.info(

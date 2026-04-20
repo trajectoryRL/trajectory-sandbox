@@ -17,3 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-requests \
         python3-httpx \
     && rm -rf /var/lib/apt/lists/*
+
+COPY docker/hermes-preentry.sh /usr/local/bin/hermes-preentry.sh
+RUN chmod +x /usr/local/bin/hermes-preentry.sh
+
+# hermes-preentry does all pre-flight as root (SSH key, config.yaml,
+# iptables, env), then execs the parent entrypoint with the hermes chat
+# args. No CMD — the chat invocation is baked into the ENTRYPOINT script.
+ENTRYPOINT ["/usr/local/bin/hermes-preentry.sh"]

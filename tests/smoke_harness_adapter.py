@@ -32,7 +32,16 @@ HARNESS_SPECS = {
         "image":   "ghcr.io/trajectoryrl/hermes-agent:latest",
         "api_env": "LLM_API_KEY",              # OpenRouter sk-or-*
         "url":     "https://openrouter.ai/api/v1",
-        "model":   "anthropic/claude-sonnet-4.5",
+        "model":   "z-ai/glm-5.1",
+    },
+    # Hermes routed to Anthropic direct via its first-class `anthropic`
+    # provider. Lets the bench compare hermes↔claude-code on the same
+    # model without needing OpenRouter BYOK.
+    "hermes-anthropic": {
+        "image":   "ghcr.io/trajectoryrl/hermes-agent:latest",
+        "api_env": "ANTHROPIC_API_KEY",        # Anthropic sk-ant-*
+        "url":     "https://api.anthropic.com",
+        "model":   "claude-sonnet-4-6",
     },
     "claudecode": {
         "image":   "ghcr.io/trajectoryrl/claude-code-agent:latest",
@@ -66,14 +75,15 @@ def main(harness: str) -> int:
         print(f"SKIP: {spec['api_env']} not set for harness={harness}")
         return 0
 
-    print(f"  harness: {harness}  model: {spec['model']}  url: {spec['url']}")
+    model = os.environ.get("SMOKE_MODEL", spec["model"])
+    print(f"  harness: {harness}  model: {model}  url: {spec['url']}")
 
     config = SandboxConfig(
         sandbox_image=SANDBOX_IMAGE,
         harness_image=spec["image"],
         llm_api_url=spec["url"],
         llm_api_key=api_key,
-        llm_model=spec["model"],
+        llm_model=model,
         harness_timeout_s=300,
     )
 

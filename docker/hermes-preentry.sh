@@ -18,17 +18,31 @@ echo "$SANDBOX_SSH_PRIVATE_KEY" > /tmp/id_ed25519
 chmod 600 /tmp/id_ed25519
 chown ${HERMES_UID}:${HERMES_UID} /tmp/id_ed25519
 
-# Pin the LLM provider via hermes config.yaml — its CLI rejects custom
-# openai-compatible endpoints via env/flag, only config.yaml works.
+# Pin the LLM provider via hermes config.yaml. Hermes has a first-class
+# `anthropic` provider for direct Anthropic API calls and a generic
+# `custom` provider for any OpenAI-compatible endpoint (OpenRouter,
+# chutes, etc.). Pick by URL: Anthropic direct when base_url is
+# api.anthropic.com, custom otherwise.
 HERMES_HOME="${HERMES_HOME:-/opt/data}"
 mkdir -p "$HERMES_HOME"
-cat > "$HERMES_HOME/config.yaml" <<EOF
+case "$LLM_BASE_URL" in
+    *api.anthropic.com*)
+        cat > "$HERMES_HOME/config.yaml" <<EOF
+model:
+  provider: "anthropic"
+  default: "$LLM_MODEL"
+EOF
+        ;;
+    *)
+        cat > "$HERMES_HOME/config.yaml" <<EOF
 model:
   provider: "custom"
   default: "$LLM_MODEL"
   base_url: "$LLM_BASE_URL"
   api_key: "$LLM_API_KEY"
 EOF
+        ;;
+esac
 chown -R ${HERMES_UID}:${HERMES_UID} "$HERMES_HOME"
 
 # /workspace writable by hermes so (e.g.) the judge can write evaluation.json.
@@ -46,6 +60,7 @@ export TERMINAL_SSH_USER="${SANDBOX_SSH_USER:-agent}"
 export TERMINAL_SSH_KEY=/tmp/id_ed25519
 export OPENROUTER_API_KEY="$LLM_API_KEY"
 export OPENAI_API_KEY="$LLM_API_KEY"
+export ANTHROPIC_API_KEY="$LLM_API_KEY"
 export HERMES_BUNDLED_SKILLS=/nonexistent
 
 # Hand off to the parent entrypoint with the hermes chat CLI args.

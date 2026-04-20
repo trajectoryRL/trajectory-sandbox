@@ -127,11 +127,12 @@ class SandboxContainer:
         self._keypair = generate_keypair()
         name = f"sandbox_{session_id}"
 
-        container = self.client.containers.run(
+        # Create with detach then connect to network with an explicit
+        # `sandbox` alias so the testee can `ssh agent@sandbox` verbatim,
+        # matching production sandbox_harness.py.
+        container = self.client.containers.create(
             image=self.config.sandbox_image,
             name=name,
-            detach=True,
-            network=network.name,
             environment={
                 "SSH_USER": self.config.sandbox_ssh_user,
                 "SSH_PUBLIC_KEY": self._keypair.public_key,
@@ -144,8 +145,12 @@ class SandboxContainer:
                 "trajectoryrl.session": session_id,
             },
             log_config=LogConfig(type=LogConfig.types.JSON, config={"max-size": "50m"}),
-            # No host network, no ports exposed — only reachable via eval_net
         )
+        network.connect(
+            container,
+            aliases=["sandbox"],
+        )
+        container.start()
         self._container = container
 
         # Get the container's IP on the eval network
@@ -320,8 +325,15 @@ class HarnessContainer:
     ) -> ContainerInfo:
         """Start a harness container for one episode.
 
-        The harness connects to the sandbox via SSH on eval_net.
-        Egress is restricted to the LLM API endpoint only.
+        Passes a harness-agnostic env contract; the image's own ENTRYPOINT
+        translates it into harness-specific setup (Hermes, Claude Code, …).
+        The image is responsible for:
+          1. Writing $SANDBOX_SSH_PRIVATE_KEY to a file (chmod 600)
+          2. Applying $IPTABLES_SETUP
+          3. Invoking its harness against the sandbox over SSH
+          4. Exiting when done
+
+        Egress is restricted to the LLM API endpoint + sandbox via iptables.
         """
         name = f"harness_{session_id}_ep{episode_index}"
         ssh_private_key = getattr(sandbox_info, "_ssh_private_key", "")
@@ -336,51 +348,38 @@ class HarnessContainer:
 
         prompt = universal_prompt or self._default_prompt()
 
+        # Harness-agnostic env contract. Every adapter image reads these.
         env = {
-            # Hermes Agent SSH terminal backend
-            "TERMINAL_ENV": "ssh",
-            "TERMINAL_SSH_HOST": sandbox_info.ip_address,
-            "TERMINAL_SSH_PORT": str(self.config.sandbox_ssh_port),
-            "TERMINAL_SSH_USER": self.config.sandbox_ssh_user,
-            "TERMINAL_SSH_KEY": "/tmp/session_key",
-            # Ephemeral private key (written to /tmp/session_key by entrypoint)
+            "SANDBOX_SSH_HOST": sandbox_info.ip_address,
+            "SANDBOX_SSH_PORT": str(self.config.sandbox_ssh_port),
+            "SANDBOX_SSH_USER": self.config.sandbox_ssh_user,
             "SANDBOX_SSH_PRIVATE_KEY": ssh_private_key,
-            # LLM API (Hermes uses OPENROUTER_API_KEY natively)
-            "OPENROUTER_API_KEY": self.config.llm_api_key,
             "LLM_API_KEY": self.config.llm_api_key,
             "LLM_BASE_URL": self.config.llm_api_url,
             "LLM_MODEL": self.config.llm_model,
-            # Hermes non-interactive mode
-            "HERMES_PROMPT": prompt,
-            # Egress setup script (executed before hermes)
+            "UNIVERSAL_PROMPT": prompt,
             "IPTABLES_SETUP": iptables_script,
+            "WORKSPACE_DIR": self.config.workspace_dir,
         }
 
-        # Hermes harness: write SSH key, apply egress rules, run hermes -q
-        entrypoint_cmd = (
-            'sh -c "'
-            'echo \\"$SANDBOX_SSH_PRIVATE_KEY\\" > /tmp/session_key && '
-            'chmod 600 /tmp/session_key && '
-            'eval \\"$IPTABLES_SETUP\\" 2>/dev/null; '
-            'exec hermes -q \\"$HERMES_PROMPT\\" --quiet'
-            '"'
-        )
-
-        container = self.client.containers.run(
+        # Dual-home the harness: default bridge (LLM API egress) + eval_net
+        # (internal-only path to the sandbox). Matches the production
+        # sandbox_harness.py pattern. Creating with no `network=` puts it on
+        # the default bridge; we then network.connect() it to eval_net so it
+        # can reach the sandbox. Iptables restricts egress to LLM API + sandbox.
+        container = self.client.containers.create(
             image=self.config.harness_image,
             name=name,
-            detach=True,
-            network=network.name,
             environment=env,
-            command=["sh", "-c",
-                     "echo \"$SANDBOX_SSH_PRIVATE_KEY\" > /tmp/session_key && "
-                     "chmod 600 /tmp/session_key && "
-                     "eval \"$IPTABLES_SETUP\" 2>/dev/null; "
-                     "exec hermes -q \"$HERMES_PROMPT\" --quiet"],
             mem_limit=self.config.harness_mem_limit,
             cpu_quota=self.config.harness_cpu_quota,
-            # NET_ADMIN needed for iptables egress rules
-            cap_add=["NET_ADMIN"],
+            # NET_ADMIN: iptables egress whitelist.
+            # SYS_ADMIN + /dev/fuse: sshfs mount in the Claude Code adapter
+            # (Hermes doesn't need it but the extra capability is harmless
+            # inside the already-isolated eval_net).
+            cap_add=["NET_ADMIN", "SYS_ADMIN"],
+            devices=["/dev/fuse:/dev/fuse:rwm"],
+            security_opt=["apparmor:unconfined"],
             labels={
                 "trajectoryrl.role": "harness",
                 "trajectoryrl.session": session_id,
@@ -388,6 +387,8 @@ class HarnessContainer:
             },
             log_config=LogConfig(type=LogConfig.types.JSON, config={"max-size": "50m"}),
         )
+        network.connect(container)
+        container.start()
         self._container = container
 
         container.reload()
@@ -473,8 +474,20 @@ class HarnessContainer:
 
     @staticmethod
     def _default_prompt() -> str:
-        # Harness-agnostic one-liner. The contract for what to read first lives
-        # in the INSTRUCTION.md preamble (see session.INSTRUCTION_PREAMBLE), so
-        # adding a new harness (Claude Code, OpenClaw, …) doesn't require
-        # duplicating the file-layout instructions here.
-        return "Read /workspace/INSTRUCTION.md and follow its instructions."
+        # Harness-agnostic prompt matching the trajrl-bench contract: the
+        # agent SSHes into the sandbox and does all work there. Same string
+        # used by production sandbox_harness.py. Hermes's TERMINAL_ENV=ssh
+        # auto-routes its shell calls so this is a redundant-but-harmless
+        # instruction; Claude Code / OpenClaw / any other framework follows
+        # the instruction literally via its Bash tool.
+        return (
+            "SSH into the sandbox: `ssh -o StrictHostKeyChecking=no "
+            "-i /tmp/id_ed25519 agent@sandbox`. "
+            "Everything you need is there: shell, filesystem, tools. "
+            "Read /workspace/SKILL.md for your approach. "
+            "Read /workspace/INSTRUCTION.md for this episode's task. "
+            "Check /workspace/learned/ for notes from prior episodes "
+            "(you may write there). "
+            "Explore the environment and solve the task. "
+            "Do not modify SKILL.md."
+        )

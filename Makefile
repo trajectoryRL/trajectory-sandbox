@@ -1,7 +1,8 @@
 .PHONY: install build test test-unit test-docker test-hermes test-pressure clean
 
-SANDBOX_IMAGE := ghcr.io/trajectoryrl/trajrl-bench:latest
-HERMES_IMAGE  := ghcr.io/trajectoryrl/hermes-agent:latest
+SANDBOX_IMAGE    := ghcr.io/trajectoryrl/trajrl-bench:latest
+HERMES_IMAGE     := ghcr.io/trajectoryrl/hermes-agent:latest
+CLAUDECODE_IMAGE := ghcr.io/trajectoryrl/claude-code-agent:latest
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -13,12 +14,16 @@ install:
 build:
 	docker build -f docker/Dockerfile.sandbox -t $(SANDBOX_IMAGE) .
 	docker build -f docker/Dockerfile.hermes -t $(HERMES_IMAGE) .
+	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
 
 build-sandbox:
 	docker build -f docker/Dockerfile.sandbox -t $(SANDBOX_IMAGE) .
 
 build-hermes:
 	docker build -f docker/Dockerfile.hermes -t $(HERMES_IMAGE) .
+
+build-claudecode:
+	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
 
 # ---------------------------------------------------------------------------
 # Tests (ordered by what they need)

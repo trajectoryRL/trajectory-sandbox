@@ -1,0 +1,33 @@
+# Claude Code harness adapter for trajrl-bench.
+#
+# Claude Code runs in this container and SSHes into the sandbox for every
+# action, per the trajrl-bench contract: "all work happens inside the
+# sandbox." No proxies, no filesystem bridges, no shell shims. Claude Code's
+# Bash tool just runs `ssh agent@sandbox "<cmd>"` exactly as a human user
+# would.
+FROM node:22-slim
+
+LABEL org.opencontainers.image.title="trajrl-claude-code-agent"
+LABEL org.opencontainers.image.description="Claude Code + ssh client for trajrl-bench"
+LABEL org.opencontainers.image.version="3.1.0"
+LABEL org.opencontainers.image.source="https://github.com/trajectoryRL/trajrl-bench"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openssh-client \
+        iptables \
+        gosu \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user so `claude --dangerously-skip-permissions` is allowed.
+# The Anthropic CLI refuses that flag under uid 0.
+RUN useradd --create-home --uid 10000 --shell /bin/bash cc
+
+# Claude Code CLI (non-interactive -p mode).
+RUN npm install -g @anthropic-ai/claude-code
+
+COPY docker/claudecode-entrypoint.sh /usr/local/bin/harness-entrypoint.sh
+RUN chmod +x /usr/local/bin/harness-entrypoint.sh
+
+CMD ["/usr/local/bin/harness-entrypoint.sh"]

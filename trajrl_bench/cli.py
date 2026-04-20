@@ -199,6 +199,37 @@ def cmd_scenarios(args):
     json.dump({"version": __version__, "scenarios": SCENARIOS}, sys.stdout, indent=2)
 
 
+def cmd_fetch_skill(args):
+    """Flatten a clawhub-style skill pack (zip) into a single SKILL.md.
+
+    Prints a JSON line with the cache path and content digest so a bench
+    runner can pin the specific flattening.
+    """
+    from pathlib import Path
+    from trajrl_bench.skill_fetch import fetch_from_zip, DEFAULT_CACHE_DIR
+
+    cache_dir = Path(args.cache_dir) if args.cache_dir else DEFAULT_CACHE_DIR
+    zip_path = Path(args.zip).expanduser().resolve()
+    if not zip_path.exists():
+        print(f"no such zip: {zip_path}", file=sys.stderr)
+        sys.exit(1)
+
+    out_path, digest, bundle = fetch_from_zip(zip_path, cache_dir=cache_dir)
+    json.dump(
+        {
+            "slug": bundle.slug,
+            "version": bundle.version,
+            "source": bundle.source,
+            "path": str(out_path),
+            "sha256": digest,
+            "bytes": out_path.stat().st_size,
+        },
+        sys.stdout,
+        indent=2,
+    )
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="trajrl_bench.cli",
@@ -232,6 +263,13 @@ def main():
     # scenarios
     sub.add_parser("scenarios", help="List available scenarios")
 
+    # fetch-skill
+    fs = sub.add_parser("fetch-skill", help="Flatten a skill pack zip into a single SKILL.md")
+    fs.add_argument("--zip", required=True,
+                    help="Path to a clawhub-style skill pack zip (with _meta.json)")
+    fs.add_argument("--cache-dir", default=None,
+                    help="Output directory (default: ~/.trajrl-bench/skills)")
+
     args = parser.parse_args()
     if args.command == "generate":
         cmd_generate(args)
@@ -243,6 +281,8 @@ def main():
         cmd_environment(args)
     elif args.command == "scenarios":
         cmd_scenarios(args)
+    elif args.command == "fetch-skill":
+        cmd_fetch_skill(args)
     else:
         parser.print_help()
         sys.exit(1)

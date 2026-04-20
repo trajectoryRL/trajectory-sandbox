@@ -3,6 +3,7 @@
 SANDBOX_IMAGE    := ghcr.io/trajectoryrl/trajrl-bench:latest
 HERMES_IMAGE     := ghcr.io/trajectoryrl/hermes-agent:latest
 CLAUDECODE_IMAGE := ghcr.io/trajectoryrl/claude-code-agent:latest
+OPENCLAW_IMAGE   := ghcr.io/trajectoryrl/openclaw-agent:latest
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -12,18 +13,22 @@ install:
 	pip install -e ".[dev]"
 
 build:
-	docker build -f docker/Dockerfile.sandbox -t $(SANDBOX_IMAGE) .
-	docker build -f docker/Dockerfile.hermes -t $(HERMES_IMAGE) .
+	docker build -f docker/Dockerfile.sandbox    -t $(SANDBOX_IMAGE) .
+	docker build -f docker/Dockerfile.hermes     -t $(HERMES_IMAGE) .
 	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
+	docker build -f docker/Dockerfile.openclaw   -t $(OPENCLAW_IMAGE) .
 
 build-sandbox:
-	docker build -f docker/Dockerfile.sandbox -t $(SANDBOX_IMAGE) .
+	docker build -f docker/Dockerfile.sandbox    -t $(SANDBOX_IMAGE) .
 
 build-hermes:
-	docker build -f docker/Dockerfile.hermes -t $(HERMES_IMAGE) .
+	docker build -f docker/Dockerfile.hermes     -t $(HERMES_IMAGE) .
 
 build-claudecode:
 	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
+
+build-openclaw:
+	docker build -f docker/Dockerfile.openclaw   -t $(OPENCLAW_IMAGE) .
 
 # ---------------------------------------------------------------------------
 # Tests (ordered by what they need)

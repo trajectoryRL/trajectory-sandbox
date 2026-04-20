@@ -1,0 +1,55 @@
+# OpenClaw harness adapter for trajrl-bench.
+#
+# OpenClaw (upstream github.com/openclaw/openclaw, npm `openclaw`, maintainer
+# steipete) runs in this container and SSHes into the sandbox for every
+# action, per the trajrl-bench contract: "all work happens inside the
+# sandbox." Same explicit-SSH model Hermes and Claude Code use.
+FROM node:22-slim
+
+LABEL org.opencontainers.image.title="trajrl-openclaw-agent"
+LABEL org.opencontainers.image.description="OpenClaw CLI + ssh client for trajrl-bench"
+LABEL org.opencontainers.image.version="3.1.0"
+LABEL org.opencontainers.image.source="https://github.com/trajectoryRL/trajrl-bench"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openssh-client \
+        iptables \
+        gosu \
+        curl \
+        ca-certificates \
+        git \
+        python3 \
+        make \
+        g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user for the agent. Keeps privilege symmetry with the CC
+# adapter (cc uid 10000). OpenClaw itself doesn't refuse root, but we
+# run as a normal user to mirror the real install path steipete docs
+# describe.
+RUN useradd --create-home --uid 10000 --shell /bin/bash oc
+
+# OpenClaw — official upstream install from npm. Image digest + CLI
+# version are captured by the bench runner into summary.json, so the
+# `:latest` tag is fine for pinning at the image-layer level.
+RUN npm install -g openclaw@latest
+
+# Pre-onboard as oc with a placeholder Anthropic key. This wires the
+# Anthropic provider + main agent + config file so we pay the ~30s
+# onboard cost once at build time, not on every bench episode. The
+# runtime ANTHROPIC_API_KEY env overrides the baked-in placeholder at
+# inference time.
+RUN su - oc -c 'openclaw onboard --non-interactive --accept-risk --flow quickstart \
+        --auth-choice apiKey --anthropic-api-key sk-ant-placeholder-build-only \
+        --skip-channels --skip-daemon --skip-skills --skip-health --skip-ui --skip-search' \
+    >/dev/null 2>&1
+
+# Auto-approve exec commands (matches Hermes's --yolo). Without this,
+# the agent's exec tool calls end up with livenessState=blocked pending
+# approval, which doesn't work in a non-interactive bench run.
+RUN su - oc -c 'openclaw exec-policy preset yolo' >/dev/null 2>&1
+
+COPY docker/openclaw-entrypoint.sh /usr/local/bin/harness-entrypoint.sh
+RUN chmod +x /usr/local/bin/harness-entrypoint.sh
+
+CMD ["/usr/local/bin/harness-entrypoint.sh"]

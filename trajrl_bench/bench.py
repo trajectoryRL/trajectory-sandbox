@@ -175,6 +175,8 @@ def _harness_version(client: docker.DockerClient, image: str) -> str:
         # upstream image; hit it directly to bypass the parent entrypoint's
         # skill-sync stdout.
         ["/usr/local/bin/hermes", "--version"],
+        # OpenClaw: npm-global install, node shim on PATH.
+        ["openclaw", "--version"],
     ]
     for cmd in candidates:
         try:

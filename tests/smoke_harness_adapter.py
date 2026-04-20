@@ -49,6 +49,12 @@ HARNESS_SPECS = {
         "url":     "https://api.anthropic.com",
         "model":   "claude-sonnet-4-6",
     },
+    "openclaw": {
+        "image":   "ghcr.io/trajectoryrl/openclaw-agent:latest",
+        "api_env": "ANTHROPIC_API_KEY",        # Anthropic sk-ant-*
+        "url":     "https://api.anthropic.com",
+        "model":   "claude-sonnet-4-6",
+    },
 }
 
 VANILLA_SKILL_MD = "Solve the task as best you can.\n"

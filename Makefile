@@ -1,4 +1,4 @@
-.PHONY: install build test test-unit test-docker test-hermes test-pressure clean
+.PHONY: install build test test-unit test-docker test-agent-judge clean
 
 SANDBOX_IMAGE    := ghcr.io/trajectoryrl/trajrl-bench:latest
 HERMES_IMAGE     := ghcr.io/trajectoryrl/hermes-agent:latest
@@ -29,33 +29,21 @@ build-claudecode:
 # Tests (ordered by what they need)
 # ---------------------------------------------------------------------------
 
-# No Docker, no API key — just scoring math, fixtures, evidence, judge prompts
+# No Docker, no API key — scoring math, fixtures, CLI scenario files.
 test-unit:
 	pytest tests/ -v \
 		--ignore=tests/test_e2e_docker.py \
 		--ignore=tests/test_integration.py \
-		--ignore=tests/test_judge_live.py \
-		--ignore=tests/test_judge_save.py \
-		--ignore=tests/test_skill_vs_baseline.py \
-		--ignore=tests/test_hermes_live.py
+		--ignore=tests/test_agent_judge_live.py
 
 # Needs Docker + sandbox image built
 test-docker:
 	python tests/test_e2e_docker.py
 
-# Needs Docker + both images + LLM_API_KEY in .env
-# Legacy: uses fixed LLM judge (EpisodeScorer / EpisodeJudge)
-test-hermes:
-	python tests/test_hermes_live.py
-
-# Needs Docker + both images + LLM_API_KEY in .env
-# Current: three-container agent-judge architecture
+# Needs Docker + sandbox + hermes + LLM_API_KEY in .env.
+# The canonical integration test: three-container agent-judge flow.
 test-agent-judge:
 	python tests/test_agent_judge_live.py
-
-# Needs LLM_API_KEY in .env (no Docker)
-test-pressure:
-	python tests/test_skill_vs_baseline.py
 
 # All offline tests
 test: test-unit
@@ -66,6 +54,5 @@ test: test-unit
 
 clean:
 	rm -rf __pycache__ .pytest_cache *.egg-info trajrl_bench/__pycache__ tests/__pycache__
-	docker rm -f sandbox_hermes_test hermes_hermes_test hermes_vol_helper 2>/dev/null || true
 	docker rm -f sandbox_ajt testee_ajt judge_ajt 2>/dev/null || true
-	docker network rm hermes_live_test agent_judge_live_test 2>/dev/null || true
+	docker network rm agent_judge_live_test 2>/dev/null || true

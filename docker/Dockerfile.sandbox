@@ -30,9 +30,12 @@ RUN useradd -m -s /bin/bash -u 1000 agent \
     && mkdir -p /home/agent/.ssh \
     && passwd -d agent
 
-# Python deps for mock services
+# Python deps for mock services. Also pytest — used by the codebase_fix
+# scenario's post-episode scorer. Installed at build time so the hidden
+# test runner doesn't pay a pip-install latency per episode.
 COPY docker/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+ && pip install --no-cache-dir pytest
 
 # Mock services code — root-owned, agent cannot read
 COPY docker/mock_services/ /opt/mock_services/

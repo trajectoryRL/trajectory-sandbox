@@ -157,7 +157,7 @@ class EpisodeFixtures:
         return files
 
 
-SCENARIOS = ["incident_response", "morning_brief"]
+SCENARIOS = ["incident_response", "morning_brief", "codebase_fix"]
 
 
 class FixtureFactory:
@@ -263,6 +263,15 @@ class FixtureFactory:
         """
         if self.scenario == "morning_brief":
             return self._generate_morning_brief(rep_index, world)
+        if self.scenario == "codebase_fix":
+            # Scenario is designed in scenarios/codebase_fix/DESIGN.md;
+            # fixture generator is a follow-up PR. Fail loudly with a
+            # pointer rather than silently returning the wrong shape.
+            raise NotImplementedError(
+                "scenario='codebase_fix' is in design phase — see "
+                "scenarios/codebase_fix/DESIGN.md. Fixture generator "
+                "lands in a follow-up PR."
+            )
         return self._generate_incident_response(rep_index, world)
 
     def _generate_incident_response(self, rep_index: int, world: World) -> EpisodeFixtures:

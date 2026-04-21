@@ -26,7 +26,14 @@ Python API (for local eval/testing):
             scores.append(result.quality)
 """
 
-__version__ = "3.1.0"
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:
+    __version__ = _pkg_version("trajrl-bench")
+except PackageNotFoundError:
+    # Package is not installed (e.g. running from a source checkout without
+    # `pip install -e .`). Fall back to a sentinel so imports still succeed.
+    __version__ = "0.0.0+unknown"
 
 from trajrl_bench.types import (
     SandboxConfig,

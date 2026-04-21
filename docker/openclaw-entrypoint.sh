@@ -22,23 +22,34 @@ chown oc:oc /tmp/id_ed25519
 
 eval "$IPTABLES_SETUP" 2>/dev/null || true
 
-# Wait for sandbox sshd to accept connections.
+# Wait for sandbox sshd to accept connections. Budget is ~90s (30 × ~3s
+# per attempt incl. 2s ConnectTimeout + 1s sleep); 15s bench history showed
+# false-negatives under Docker network churn between episodes.
 ssh_ready=0
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
-    if gosu oc ssh \
-        -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+last_probe_out=""
+for i in $(seq 1 30); do
+    if probe_out=$(gosu oc ssh \
+        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -o ConnectTimeout=2 -o BatchMode=yes \
         -i /tmp/id_ed25519 -p "${SANDBOX_SSH_PORT:-22}" \
-        "${SANDBOX_SSH_USER:-agent}@${SANDBOX_SSH_HOST}" true 2>/dev/null
+        "${SANDBOX_SSH_USER:-agent}@${SANDBOX_SSH_HOST}" true 2>&1)
     then
         ssh_ready=1
         echo "[oc-harness] sandbox ssh ready after ${i}s"
         break
     fi
+    last_probe_out="$probe_out"
+    if [ "$i" = "1" ] || [ "$i" = "10" ] || [ "$i" = "20" ] || [ "$i" = "30" ]; then
+        echo "[oc-harness] ssh probe #${i}: $last_probe_out"
+    fi
     sleep 1
 done
 if [ "$ssh_ready" != "1" ]; then
     echo "[oc-harness] FATAL: sandbox ssh never became ready"
+    echo "[oc-harness] last probe: $last_probe_out"
+    echo "[oc-harness] resolving sandbox hostname:"
+    getent hosts sandbox || echo "(sandbox not resolvable)"
+    getent hosts "$SANDBOX_SSH_HOST" || echo "($SANDBOX_SSH_HOST not resolvable)"
     exit 1
 fi
 

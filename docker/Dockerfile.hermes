@@ -11,6 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/trajectoryRL/trajrl-be
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-client \
+        iptables \
         curl \
         wget \
         jq \

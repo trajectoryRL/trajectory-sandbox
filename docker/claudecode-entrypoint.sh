@@ -28,7 +28,10 @@ eval "$IPTABLES_SETUP" 2>/dev/null || true
 ssh_ready=0
 last_probe_out=""
 last_probe_rc=0
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+# 30 iterations × (2s ConnectTimeout + 1s sleep) ≈ 90s budget. 15 iterations
+# left ~46s of wall-clock which was racy under Docker network churn between
+# episodes (see Run 3 openclaw+vanilla ep1 / claudecode+pskoett ep0).
+for i in $(seq 1 30); do
     if probe_out=$(gosu cc ssh \
             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             -o ConnectTimeout=2 -o BatchMode=yes \
@@ -41,8 +44,8 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
     fi
     last_probe_rc=$?
     last_probe_out="$probe_out"
-    if [ "$i" = "1" ] || [ "$i" = "5" ] || [ "$i" = "15" ]; then
-        echo "[cc-harness] ssh probe rc=$last_probe_rc: $last_probe_out"
+    if [ "$i" = "1" ] || [ "$i" = "10" ] || [ "$i" = "20" ] || [ "$i" = "30" ]; then
+        echo "[cc-harness] ssh probe #${i} rc=$last_probe_rc: $last_probe_out"
     fi
     sleep 1
 done

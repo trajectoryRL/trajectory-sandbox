@@ -12,8 +12,11 @@ the environment contract; do not duplicate it in SKILL.md.
 ## Services
 
 A single HTTP service runs at `http://localhost:8090` and exposes email, Slack,
-Notion (tasks), Google Calendar, and Gitea surfaces. State is held in-memory
-and reset between episodes.
+Notion (tasks), Google Calendar, and Gitea surfaces. **The environment is
+pre-populated at episode start** — inbox, channels, tasks, calendar, and Gitea
+issues/PRs are already seeded when you connect. Just query the endpoints; you
+do not need to load anything from disk first. State resets to the seed between
+episodes.
 
 - `GET /health` — liveness probe.
 - `GET /state` — full service state snapshot (useful for debugging; judges also

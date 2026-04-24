@@ -74,8 +74,11 @@ bug class (just one example from the catalog below):
   300s cap.
 
 - **ep3 — Postmortem.**
-  Ticket: *"Document the rate-limiter edge case in `/workspace/POSTMORTEM.md`
-  so the next on-call engineer doesn't hit it again."*
+  Ticket: *"Document the rate-limiter edge case in
+  `/workspace/learned/POSTMORTEM.md` so the next on-call engineer
+  doesn't hit it again."* The postmortem lives under `/workspace/learned/`
+  (the cross-episode persistence channel), not inside the git repo —
+  no commit is required.
   Scored on: does the postmortem accurately describe the bug class? Does
   it cite the specific failing tests from ep0 and ep2? Does it reference
   the fix from ep2? An agent that never wrote notes in ep0-2 can't produce

@@ -245,19 +245,30 @@ Acceptance:
 
 _CODEBASE_FIX_TICKET_EP3 = """# Ticket: Write a postmortem
 
-Document the rate-limiter boundary bug in `/workspace/POSTMORTEM.md`.
+Write `/workspace/learned/POSTMORTEM.md` documenting the bug class you
+(and prior episodes) encountered while working on `src/rate_limiter.py`.
 The next on-call engineer will use this to avoid repeating the mistake.
 
+The postmortem lives under `/workspace/learned/` because that directory
+is the cross-episode persistence channel (see `ENVIRONMENT.md`). It is
+NOT inside the git repo — do not try to `git add` it.
+
 Include:
-1. A short name for the bug class.
-2. Which tests caught it (by name) — read `/workspace/test_results/ep*.json`.
+1. A short, specific name for the bug class.
+2. Which tests caught it — cite them by exact node id (read
+   `/workspace/test_results/ep*.json`).
 3. The root cause (one sentence).
-4. The fix (one paragraph + code snippet).
-5. How to avoid it in future work.
+4. The fix (one paragraph + minimal code snippet — use
+   `git -C /workspace/repo show <ep2-branch>:src/rate_limiter.py`
+   if you need to recall what you committed).
+5. How to detect or avoid it in future work.
 
 Check `/workspace/learned/` for any notes you wrote earlier that would
-inform the postmortem. This ticket does not require code changes — just
-the postmortem file. Commit to a branch named `ep3-postmortem`.
+inform the postmortem.
+
+Acceptance:
+- `/workspace/learned/POSTMORTEM.md` exists and covers items 1-5.
+- No code commit required for this episode.
 """
 
 

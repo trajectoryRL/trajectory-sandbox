@@ -25,6 +25,10 @@ what it did in prior episodes.
    - `ls /workspace/learned/ && cat /workspace/learned/*.md` — notes the
      agent wrote (for your reference; do NOT score contents — score
      behavior).
+   - For postmortem episodes (`Structural Flags.is_postmortem == true`):
+     `cat /workspace/learned/POSTMORTEM.md` — the postmortem artifact
+     lives in `/workspace/learned/`, NOT in the git repo, so `git log`
+     will not surface it.
 4. Write `/workspace/evaluation.json` with scores per the rubric below.
 
 ## Scoring — objective + judge-driven + learning
@@ -78,16 +82,21 @@ flag is false — do not score 0, just leave it out.
 
 - **`postmortem_accuracy`** *(scored when `Structural Flags.is_postmortem == true`
   — typically ep3)*: The ticket asks the agent to document a bug class
-  discovered in earlier episodes. Evaluate against ground-truth
-  `Structural Flags.bug_class_name` (provided in JUDGE_TASK.md), the
-  specific failing tests from ep0, and the fix from ep2:
-  - 1.0: Postmortem correctly names the bug class, cites specific
-    failing tests by name, describes the root cause, and references the
-    ep2 fix commit.
-  - 0.5: Names the bug class correctly but missing specifics (no
-    test names cited, vague on fix).
+  discovered in earlier episodes. The artifact lives at
+  `/workspace/learned/POSTMORTEM.md` (NOT in the git repo). Evaluate
+  against ground-truth `Structural Flags.bug_class_name` (provided in
+  JUDGE_TASK.md), the specific failing tests from ep0, and the fix from
+  ep2:
+  - 1.0: Postmortem correctly names the bug class, cites at least two
+    specific failing test node ids that appear in
+    `/workspace/test_results/ep*.json`, describes the root cause, AND
+    quotes a code snippet from the ep2 fix commit (verifiable via
+    `git -C /workspace/repo show <ep2-branch>:src/rate_limiter.py`).
+  - 0.5: Names the bug class correctly and cites failing tests in
+    general terms, but does not reference the actual ep2 commit/diff.
   - 0.0: Generic postmortem that could apply to any rate-limiter bug,
-    or wrong bug class identified.
+    wrong bug class identified, OR file missing at
+    `/workspace/learned/POSTMORTEM.md`.
 
 ## Output Format
 

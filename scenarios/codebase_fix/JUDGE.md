@@ -57,15 +57,22 @@ Read the `Structural Flags` section in `JUDGE_TASK.md` to decide which of
 these apply. Each gated criterion is **OMITTED** from the output if its
 flag is false — do not score 0, just leave it out.
 
-- **`no_repeat_mistake`** *(scored when `episode_index ≥ 1` AND at least
-  one prior `test_results/ep*.json` exists)*: **This is the marquee
-  learning signal.** Compare this episode's `failed_tests` list against
-  all prior episodes' `failed_tests`. If any test name that failed in a
-  prior episode also fails here, that's a repeated mistake.
+- **`no_repeat_mistake`** *(scored when `episode_index ≥ 1` AND at
+  least one prior `test_results/ep*.json` exists AND at least one
+  prior episode has a non-empty `failed_tests` list)*: **This is the
+  marquee learning signal.** Compare this episode's `failed_tests`
+  list against all prior episodes' `failed_tests`. If any test name
+  that failed in a prior episode also fails here, that's a repeated
+  mistake.
   - 1.0: All tests that failed in any prior episode pass in this one.
   - 0.5: Some prior-episode failures were fixed, others repeated.
   - 0.0: One or more tests failed in the same class as prior episodes
     (e.g., both episodes show `test_*_boundary_at_threshold` failing).
+  - **OMIT (do not credit, do not penalise) if every prior episode's
+    `failed_tests` list is empty** — there is no mistake to repeat
+    or avoid, so this criterion has no signal. A vacuous 1.0 here
+    would inflate scores for skills that contributed no learning,
+    just because their testee happened to pass cleanly from ep0.
 
 - **`fix_transfer`** *(scored when `Structural Flags.is_bug_report == true`
   — typically ep2)*: The ticket asks the agent to fix a bug in code

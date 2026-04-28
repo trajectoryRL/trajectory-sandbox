@@ -59,13 +59,35 @@ INSTRUCTION_PREAMBLE = (
 _JUDGE_TRANSCRIPT_CAP = 8000
 
 
-def _criterion_ratios(evaluation: dict) -> dict[str, float]:
+def _objective_tests_pass(test_results: dict | None) -> float | None:
+    """The bench-computed (passed/total) ratio from the pytest run.
+
+    Returns None if test_results is missing/invalid (e.g. agent never
+    committed and pytest produced no JSON). Otherwise returns the
+    canonical value the judge was supposed to copy through.
+    """
+    if not isinstance(test_results, dict):
+        return None
+    total = test_results.get("total")
+    passed = test_results.get("passed")
+    if not isinstance(total, int) or not isinstance(passed, int) or total <= 0:
+        return None
+    return max(0.0, min(1.0, passed / total))
+
+
+def _criterion_ratios(evaluation: dict, test_results: dict | None = None) -> dict[str, float]:
     """Per-criterion normalised scores from a judge evaluation.
 
     Returns `{criterion_name: 0.0–1.0}`. Handles the same three schema
     shapes `_extract_quality` does (dict of floats / list of objects /
     dict of objects), dropping any entry that can't be normalised.
     Empty dict if `criteria` is missing / unusable.
+
+    When test_results is supplied, `tests_pass` is OVERRIDDEN with the
+    bench's objective (passed/total) ratio. The judge LLM was supposed
+    to copy this through verbatim per JUDGE.md, but in practice judges
+    miscount, omit, or fail to parse test_results.json — so we ground
+    the value at the source.
     """
     crit = evaluation.get("criteria")
     out: dict[str, float] = {}
@@ -95,45 +117,81 @@ def _criterion_ratios(evaluation: dict) -> dict[str, float]:
             r = _as_ratio(c)
             if r is not None:
                 out[str(name)] = r
+
+    objective = _objective_tests_pass(test_results)
+    if objective is not None:
+        out["tests_pass"] = objective
+
     return out
 
 
-def _extract_quality(evaluation: dict) -> float:
-    """Pull a 0.0–1.0 quality score out of the judge's evaluation.json.
+# Quality formula matching JUDGE.md, applied deterministically by the
+# bench instead of trusting the judge LLM's emitted `quality` field.
+# Always-scored criteria + the learning slice; learning weight is
+# omitted when no learning criterion is present so the always-scored
+# slice can still reach 1.0.
+_QUALITY_BASE_WEIGHTS = {
+    "tests_pass":        0.5,
+    "code_quality":      0.15,
+    "change_minimality": 0.10,
+}
+_QUALITY_LEARNING_CRITERIA = ("no_repeat_mistake", "fix_transfer", "postmortem_accuracy")
+_QUALITY_LEARNING_WEIGHT = 0.25
 
-    The JUDGE.md schema asks for {"quality": 0.0-1.0, "criteria": {k: v}, ...}
-    but real judge agents drift — Sonnet likes to emit criteria as an array
-    of {name, score, max, notes} and omit a top-level `quality`. Handle both
-    without double-penalizing the agent for its judge's formatting tic.
+
+def _compute_quality_deterministic(criteria_ratios: dict[str, float]) -> float:
+    """Apply JUDGE.md's stated formula deterministically.
+
+    Replaces the judge LLM's `quality` field with a bench-computed
+    value derived from the criteria the judge graded. Removes judge
+    variance from the headline metric (we'd seen run-to-run Δ≈0.15
+    on identical inputs).
+
+      quality = 0.5·tests_pass + 0.15·code_quality + 0.10·change_minimality
+              + 0.25·mean(applicable learning criteria)
+
+    Missing weights (a criterion not in the criteria dict) drop out
+    and the remaining weights are renormalised to sum to 1.0. So an
+    ep0 with no learning criterion in scope still tops out at 1.0.
+    Returns 0.0 when no scorable criterion is present.
     """
-    q = evaluation.get("quality")
-    if isinstance(q, (int, float)):
-        return max(0.0, min(1.0, float(q)))
+    if not criteria_ratios:
+        return 0.0
 
-    crit = evaluation.get("criteria")
+    quality = 0.0
+    total_weight = 0.0
+    for name, weight in _QUALITY_BASE_WEIGHTS.items():
+        if name in criteria_ratios:
+            quality += weight * criteria_ratios[name]
+            total_weight += weight
 
-    def _norm_one(obj) -> float | None:
-        """Score/max-ratio for a single criterion item (dict or number)."""
-        if isinstance(obj, (int, float)):
-            return max(0.0, min(1.0, float(obj)))
-        if isinstance(obj, dict):
-            score = obj.get("score")
-            max_ = obj.get("max", 1)
-            if isinstance(score, (int, float)) and isinstance(max_, (int, float)) and max_ > 0:
-                return max(0.0, min(1.0, float(score) / float(max_)))
-        return None
+    learning_present = [k for k in _QUALITY_LEARNING_CRITERIA if k in criteria_ratios]
+    if learning_present:
+        learning_mean = sum(criteria_ratios[k] for k in learning_present) / len(learning_present)
+        quality += _QUALITY_LEARNING_WEIGHT * learning_mean
+        total_weight += _QUALITY_LEARNING_WEIGHT
 
-    if isinstance(crit, dict) and crit:
-        ratios = [r for r in (_norm_one(v) for v in crit.values()) if r is not None]
-        if ratios:
-            return sum(ratios) / len(ratios)
+    if total_weight <= 0:
+        return 0.0
+    return max(0.0, min(1.0, quality / total_weight))
 
-    if isinstance(crit, list) and crit:
-        ratios = [r for r in (_norm_one(c) for c in crit) if r is not None]
-        if ratios:
-            return sum(ratios) / len(ratios)
 
-    return 0.0
+def _extract_quality(evaluation: dict | None, test_results: dict | None = None) -> float:
+    """Compute the episode quality score deterministically.
+
+    The judge LLM was previously the source of truth for `quality`
+    (see prior versions of this function). That made the headline
+    metric depend on the judge model's ability to read its own rubric
+    and apply weights — both shaky in practice. We now compute quality
+    in-bench from the criteria the judge graded, with `tests_pass`
+    pinned to the objective pytest result when available.
+
+    Returns 0.0 if no scorable criterion is present (e.g. judge
+    crashed and produced empty evaluation.json AND no test_results
+    are available).
+    """
+    crit = _criterion_ratios(evaluation or {}, test_results)
+    return _compute_quality_deterministic(crit)
 
 
 def _summarize_prior_episode(ep: EpisodeResult) -> dict:
@@ -582,13 +640,19 @@ class EvalSession:
             judge.stop()
 
         episode.evaluation = evaluation
+        # Deterministic quality from criteria + objective tests_pass.
+        # Even when the judge produced no usable evaluation, an
+        # episode that passed pytest still scores nonzero on the
+        # tests_pass slice — the agent shouldn't lose all credit just
+        # because the judge LLM crashed.
+        episode.quality = _extract_quality(evaluation, test_results=episode.test_results)
         if evaluation is not None:
-            episode.quality = _extract_quality(evaluation)
             logger.info("Episode %d judged: quality=%.3f", episode.episode_index, episode.quality)
         else:
             logger.warning(
-                "Episode %d: judge produced no evaluation (timed_out=%s code=%s)",
-                episode.episode_index, timed_out, exit_code,
+                "Episode %d: judge produced no evaluation (timed_out=%s code=%s); "
+                "quality=%.3f from objective tests_pass only",
+                episode.episode_index, timed_out, exit_code, episode.quality,
             )
 
     def get_learned(self) -> dict[str, str]:

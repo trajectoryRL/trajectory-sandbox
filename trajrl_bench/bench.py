@@ -357,7 +357,10 @@ def _run_cell(
     criteria_per_ep: list[dict[str, float]] = []
     for ep in result.episodes:
         evaluation = ep.evaluation or {}
-        ratios = _criterion_ratios(evaluation)
+        # Overlay objective tests_pass on the judge's criteria so
+        # criteria_means in cell.json reflects the bench-computed
+        # value, not the judge LLM's emitted (sometimes wrong) one.
+        ratios = _criterion_ratios(evaluation, test_results=ep.test_results)
         criteria_per_ep.append(ratios)
         per_episode.append({
             "index": ep.episode_index,

@@ -39,18 +39,24 @@ logger = logging.getLogger(__name__)
 
 
 # Universal bootstrap prepended to every INSTRUCTION.md written into the sandbox.
-# This is the harness↔scenario contract: the agent reads ENVIRONMENT.md (sandbox
-# facts) and SKILL.md (miner judgment) before the task. Living here (not in the
-# harness prompt) keeps every harness — Hermes, Claude Code, OpenClaw — agnostic
-# to file layout. The harness only needs to point at INSTRUCTION.md.
+# This is the harness↔scenario contract — kept minimal so the agent isn't
+# *primed* to follow the SKILL.md as a rule-set. Earlier preambles framed
+# SKILL.md as "your skill pack: strategy, process, rules" which on weaker
+# base LLMs caused the agent to apply ill-fitting pack content as commands
+# (a 271-line incident-response pack pushed Qwen3.5 to look for Slack
+# channels in a coding task, burning ep0). Now the preamble just lists the
+# task file and notes the supporting files exist; whether SKILL.md helps
+# is up to its content, not the harness telling the agent it's load-bearing.
 #
-# In-memory EpisodeFixtures.instruction_md stays clean (no preamble), so the
-# judge sees the bare task, not the bootstrap.
+# Living here (not in the harness prompt) keeps every harness — Hermes,
+# Claude Code, OpenClaw — agnostic to file layout. In-memory
+# EpisodeFixtures.instruction_md stays clean (no preamble), so the judge
+# sees the bare task, not the bootstrap.
 INSTRUCTION_PREAMBLE = (
-    "Before starting, read `/workspace/ENVIRONMENT.md` (sandbox services, "
-    "endpoints, filesystem layout) and `/workspace/SKILL.md` (your skill pack: "
-    "strategy, process, rules). Do not modify either file. Then complete the "
-    "task below.\n\n---\n\n"
+    "Read `/workspace/INSTRUCTION.md` (your task, below) and complete it. "
+    "`/workspace/ENVIRONMENT.md` describes the sandbox if you need it; "
+    "`/workspace/SKILL.md` is supporting context that may or may not help. "
+    "Do not modify SKILL.md or ENVIRONMENT.md.\n\n---\n\n"
 )
 
 # Cap the testee transcript we hand to the judge so the judge's context

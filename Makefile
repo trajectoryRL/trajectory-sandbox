@@ -10,7 +10,7 @@ OPENCLAW_IMAGE   := ghcr.io/trajectoryrl/openclaw-agent:latest
 # ---------------------------------------------------------------------------
 
 install:
-	pip install -e ".[dev]"
+	uv sync
 
 build:
 	docker build -f docker/Dockerfile.sandbox    -t $(SANDBOX_IMAGE) .
@@ -36,19 +36,19 @@ build-openclaw:
 
 # No Docker, no API key — scoring math, fixtures, CLI scenario files.
 test-unit:
-	pytest tests/ -v \
+	uv run pytest tests/ -v \
 		--ignore=tests/test_e2e_docker.py \
 		--ignore=tests/test_integration.py \
 		--ignore=tests/test_agent_judge_live.py
 
 # Needs Docker + sandbox image built
 test-docker:
-	python tests/test_e2e_docker.py
+	uv run python tests/test_e2e_docker.py
 
 # Needs Docker + sandbox + hermes + LLM_API_KEY in .env.
 # The canonical integration test: three-container agent-judge flow.
 test-agent-judge:
-	python tests/test_agent_judge_live.py
+	uv run python tests/test_agent_judge_live.py
 
 # All offline tests
 test: test-unit

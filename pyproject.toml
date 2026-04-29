@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=65.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "trajrl-bench"
@@ -17,7 +17,7 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
@@ -26,8 +26,6 @@ dev = [
     "httpx>=0.25.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["trajrl_bench*"]
 
 [tool.ruff]
 line-length = 100

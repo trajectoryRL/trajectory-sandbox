@@ -1,0 +1,36 @@
+# Smoke-test config for log-summary-date-ranges (shell_verifier scenario).
+#
+# Uses the same testee model as qwen35_starter. No judge_model needed —
+# quality is determined entirely by tests/test.sh (binary 0/1 reward).
+#
+# The scenario's environment/Dockerfile is built locally before the run
+# and injected into the sandbox as /app/logs. The agent must write
+# /app/summary.csv; test.sh validates it via pytest.
+
+run_name: log-summary-smoke
+
+model:
+  name: qwen/qwen3.5-35b-a3b
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: LLM_API_KEY
+
+# No judge_model — shell_verifier scenarios are scored by test.sh.
+
+scenarios:
+  - log-summary-date-ranges
+
+skills:
+  - name: vanilla
+    content: "Solve the task as best you can.\n"
+
+harnesses:
+  - name: hermes
+    image: ghcr.io/trajectoryrl/hermes-agent:latest
+
+sandbox_image: ghcr.io/trajectoryrl/trajrl-bench:latest
+
+episodes_per_cell: 5
+run_dir: results
+
+testee_timeout_s: 900
+judge_timeout_s: 900

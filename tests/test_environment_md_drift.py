@@ -46,13 +46,27 @@ def _doc_paths(doc: str) -> set[str]:
     return {_normalize(u.rstrip("/")) if u != "/" else "/" for u in urls}
 
 
+def _uses_mock_services(env_text: str) -> bool:
+    """Scenario uses mock services iff its ENVIRONMENT.md documents real endpoints.
+
+    A passing mention of `localhost:8090` (e.g. codebase_fix's "the server is
+    running for framework uniformity, you don't need to touch it") doesn't
+    count — only documented endpoint paths beyond /health and /state.
+    """
+    documented = _doc_paths(env_text)
+    return bool(documented - {"/health", "/state"})
+
+
 @pytest.mark.parametrize("scenario_dir", sorted(SCENARIOS_DIR.iterdir()))
 def test_environment_md_covers_every_agent_endpoint(scenario_dir):
     env_path = scenario_dir / "ENVIRONMENT.md"
     if not env_path.exists():
         pytest.skip(f"{scenario_dir.name} has no ENVIRONMENT.md")
+    env_text = env_path.read_text()
+    if not _uses_mock_services(env_text):
+        pytest.skip(f"{scenario_dir.name} doesn't use mock services")
 
-    documented = _doc_paths(env_path.read_text())
+    documented = _doc_paths(env_text)
     implemented = _server_endpoints() - {_normalize(p) for p in INTERNAL_PATHS}
 
     missing = implemented - documented
@@ -69,8 +83,11 @@ def test_environment_md_does_not_reference_nonexistent_endpoints(scenario_dir):
     env_path = scenario_dir / "ENVIRONMENT.md"
     if not env_path.exists():
         pytest.skip(f"{scenario_dir.name} has no ENVIRONMENT.md")
+    env_text = env_path.read_text()
+    if not _uses_mock_services(env_text):
+        pytest.skip(f"{scenario_dir.name} doesn't use mock services")
 
-    documented = _doc_paths(env_path.read_text())
+    documented = _doc_paths(env_text)
     implemented = _server_endpoints()
 
     # /health and /state are real endpoints. Everything else in ENVIRONMENT.md

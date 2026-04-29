@@ -835,8 +835,17 @@ class HarnessContainer:
     def setup_egress(self) -> bool:
         """Apply iptables egress rules inside the harness container.
 
-        Called after start(). The IPTABLES_SETUP env var contains the script.
-        Returns True if rules were applied successfully.
+        DEPRECATED. Calling this AFTER the image's hermes-preentry.sh has
+        already applied $IPTABLES_SETUP results in a corrupted OUTPUT
+        chain (the second `iptables -F OUTPUT` interleaves with the
+        first run's still-being-resolved DNS-backed rules and leaves
+        DROP positioned before the sandbox ACCEPT). Symptom: harness
+        cannot SSH into the sandbox; every episode times out at 0/12.
+
+        Kept as a method only so external callers building a non-Hermes
+        harness image (one that doesn't run IPTABLES_SETUP itself) can
+        still apply egress. session.py no longer calls it on the Hermes
+        path.
         """
         if self._container is None:
             return False

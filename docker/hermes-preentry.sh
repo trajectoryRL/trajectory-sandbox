@@ -116,8 +116,13 @@ set -e
 # $HERMES_HOME/sessions/ and contains exactly one session (this
 # container only ran one chat). Failure modes (no DB, empty store,
 # permission issue) all fall through silently — the JSONL is a debug
-# artifact, not load-bearing for scoring.
+# artifact, not load-bearing for scoring. Stderr lives next to the
+# JSONL in /workspace so the bench / production validator can read it
+# back via get_archive when the JSONL is empty (vs the old /tmp path
+# which was unreachable from outside the container).
 mkdir -p /workspace
-hermes sessions export /workspace/turns.jsonl 2>/tmp/turns_export.err || true
+hermes sessions export /workspace/turns.jsonl 2>/workspace/turns_export.err
+export_rc=$?
+echo "export_rc=$export_rc" >> /workspace/turns_export.err
 
 exit "$chat_rc"

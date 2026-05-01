@@ -112,16 +112,22 @@ set +e
 chat_rc=$?
 set -e
 
-# Export the structured session JSONL. The session DB is in
-# $HERMES_HOME/sessions/ and contains exactly one session (this
-# container only ran one chat). Failure modes (no DB, empty store,
-# permission issue) all fall through silently — the JSONL is a debug
-# artifact, not load-bearing for scoring. Stderr lives next to the
-# JSONL in /workspace so the bench / production validator can read it
-# back via get_archive when the JSONL is empty (vs the old /tmp path
-# which was unreachable from outside the container).
+# Export the structured session JSONL. Use the absolute venv path:
+# entrypoint.sh's `exec hermes "$@"` activates the venv only inside its
+# own subprocess, and gosu-drops to the hermes user; when control
+# returns here we're back in the outer shell as root with our original
+# (no-venv) PATH, so bare `hermes` is "command not found". This was the
+# real cause of every production turns.jsonl being empty — verified
+# live against running validators on 2026-05-01.
+#
+# Failure modes (no DB, empty store, permission issue) all fall through
+# without aborting — the JSONL is a debug artifact, not load-bearing
+# for scoring. Stderr lives next to the JSONL in /workspace so the
+# bench / production validator can read it back via get_archive when
+# the JSONL is empty (vs the old /tmp path which was unreachable from
+# outside the container).
 mkdir -p /workspace
-hermes sessions export /workspace/turns.jsonl 2>/workspace/turns_export.err
+/opt/hermes/.venv/bin/hermes sessions export /workspace/turns.jsonl 2>/workspace/turns_export.err
 export_rc=$?
 echo "export_rc=$export_rc" >> /workspace/turns_export.err
 

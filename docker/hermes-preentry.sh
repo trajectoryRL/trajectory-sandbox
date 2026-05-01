@@ -49,6 +49,29 @@ chown -R ${HERMES_UID}:${HERMES_UID} "$HERMES_HOME"
 chown -R hermes:hermes /workspace 2>/dev/null || true
 chmod 0755 /workspace 2>/dev/null || true
 
+# Pre-write a system-wide SSH config so the agent can use the short form
+# `ssh sandbox 'CMD'` instead of the noisy explicit form. Weaker testees
+# (Qwen3.5-class) read the long `ssh -o ... -i ... agent@sandbox` example
+# in the prompt as a one-shot setup command, then run subsequent shell
+# commands LOCALLY in this harness container — where /workspace is
+# empty — and burn their turn budget hunting for SKILL.md. ControlMaster
+# reuses the underlying TCP+SSH connection across calls (~150ms saved
+# per invocation on a many-turn episode).
+mkdir -p /etc/ssh/ssh_config.d
+cat > /etc/ssh/ssh_config.d/sandbox.conf <<'EOF'
+Host sandbox
+    HostName sandbox
+    User agent
+    IdentityFile /tmp/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    ControlMaster auto
+    ControlPath /tmp/ssh-%r@%h:%p
+    ControlPersist 600
+EOF
+grep -q 'Include /etc/ssh/ssh_config.d' /etc/ssh/ssh_config 2>/dev/null \
+    || echo 'Include /etc/ssh/ssh_config.d/*.conf' >> /etc/ssh/ssh_config
+
 # Apply egress whitelist while still root. Fail loud — this is the only
 # guardrail between the agent and the open internet, so a silent no-op
 # is a security hole (iptables binary missing, rules failing to apply,

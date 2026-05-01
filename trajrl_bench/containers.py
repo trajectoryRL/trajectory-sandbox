@@ -1156,20 +1156,30 @@ class HarnessContainer:
     @staticmethod
     def _default_prompt() -> str:
         # Harness-agnostic prompt matching the trajrl-bench contract: the
-        # agent SSHes into the sandbox and does all work there. Same string
-        # used by production sandbox_harness.py. Hermes's TERMINAL_ENV=ssh
-        # auto-routes its shell calls so this is a redundant-but-harmless
-        # instruction; Claude Code / OpenClaw / any other framework follows
-        # the instruction literally via its Bash tool.
+        # agent SSHes into the sandbox and does all work there. Same
+        # string used by production sandbox_harness.py.
+        #
+        # The hermes preentry pre-writes /etc/ssh/ssh_config.d/sandbox.conf
+        # so `ssh sandbox 'CMD'` resolves to the long form
+        # (-i /tmp/id_ed25519, -o StrictHostKeyChecking=no, ...) plus a
+        # shared ControlMaster. Weaker testees (Qwen3.5-class) couldn't
+        # reliably read the long-form one-shot example as a wrapping
+        # pattern — they ran `cat /workspace/INSTRUCTION.md` LOCALLY in
+        # the harness container after the initial ssh exited, found nothing,
+        # then burned 15 turns on archaeology. The wrap-pattern with
+        # explicit examples below is unambiguous.
         return (
-            "SSH into the sandbox: `ssh -o StrictHostKeyChecking=no "
-            "-i /tmp/id_ed25519 agent@sandbox`. "
-            "Everything you need is there: shell, filesystem, tools. "
-            "Read /workspace/SKILL.md for your approach. "
-            "Read /workspace/INSTRUCTION.md for this episode's task. "
-            "Check /workspace/learned/ for notes from prior episodes "
-            "(you may write there). "
-            "Explore the environment and solve the task. "
+            "The sandbox is a separate machine reachable only via SSH. "
+            "Wrap every shell command with `ssh sandbox` to run it inside:\n"
+            "  ssh sandbox 'cat /workspace/SKILL.md'         # your approach\n"
+            "  ssh sandbox 'cat /workspace/INSTRUCTION.md'   # this episode's task\n"
+            "  ssh sandbox 'ls /workspace/learned/'          # prior-episode notes\n"
+            "\n"
+            "Everything you need — SKILL.md, INSTRUCTION.md, the codebase, "
+            "tests, and any mock services — lives in the sandbox. "
+            "Files in your local /workspace are NOT the sandbox; they are "
+            "the harness container and will appear empty. "
+            "You may write notes to /workspace/learned/ inside the sandbox. "
             "Do not modify SKILL.md."
         )
 
@@ -1210,17 +1220,18 @@ class JudgeContainer:
         "agent's task description, transcript, and world context).\n"
         " (3) SSH into the sandbox for ground-truth evidence — the embedded "
         "transcript in JUDGE_TASK.md is partial, and an empty transcript does "
-        "NOT mean the agent did nothing. Use an explicit shell command: "
-        "`ssh -o StrictHostKeyChecking=no -i /tmp/id_ed25519 agent@sandbox "
-        "'<cmd>'`. At minimum, inspect: `ls -la /workspace/` and "
-        "`ls /workspace/learned/` (durable artifacts the agent wrote). If "
-        "`/workspace/repo/` is a git repo, inspect what the agent actually "
-        "changed: `git -C /workspace/repo log --all --oneline -20`, "
-        "`git -C /workspace/repo branch -a`, and `git -C /workspace/repo "
-        "diff main..HEAD` (or against the relevant base). For mock services: "
-        "`curl -s http://localhost:8090/state`. Treat the sandbox state as "
-        "authoritative; the transcript is supplementary. READ-ONLY: do NOT "
-        "POST, PUT, or DELETE; you are grading, not executing.\n"
+        "NOT mean the agent did nothing. Wrap each command with `ssh sandbox`:"
+        " `ssh sandbox 'ls -la /workspace/'`, "
+        "`ssh sandbox 'ls /workspace/learned/'` (durable artifacts the agent "
+        "wrote). If `/workspace/repo/` is a git repo, inspect what the agent "
+        "actually changed: `ssh sandbox 'git -C /workspace/repo log --all "
+        "--oneline -20'`, `ssh sandbox 'git -C /workspace/repo branch -a'`, "
+        "and `ssh sandbox 'git -C /workspace/repo diff main..HEAD'` (or "
+        "against the relevant base). For mock services: "
+        "`ssh sandbox 'curl -s http://localhost:8090/state'`. Treat the "
+        "sandbox state as authoritative; the transcript is supplementary. "
+        "READ-ONLY: do NOT POST, PUT, or DELETE; you are grading, not "
+        "executing.\n"
         f" (4) Write your grading to {_JUDGE_EVAL_PATH} on THIS container "
         "(a plain local file write — do NOT route through ssh). The file "
         "MUST match JUDGE.md's `Output Format` schema exactly; do not "

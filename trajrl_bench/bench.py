@@ -258,8 +258,9 @@ def _load_scenario_spec(scenario: str) -> ScenarioSpec:
         tests_dir = scenario_root / "tests"
         test_sh = tests_dir / "test.sh"
 
-        # Read optional verifier timeout from task.toml
+        # Read optional verifier settings from task.toml
         verifier_timeout_s = 300
+        agent_output_path = "/app/summary.csv"
         task_toml = scenario_root / "task.toml"
         if task_toml.exists():
             try:
@@ -267,8 +268,12 @@ def _load_scenario_spec(scenario: str) -> ScenarioSpec:
             except ImportError:
                 import tomli as tomllib  # type: ignore[no-redef]
             cfg = tomllib.loads(task_toml.read_text())
+            verifier_cfg = cfg.get("verifier", {})
             verifier_timeout_s = int(
-                cfg.get("verifier", {}).get("timeout_sec", verifier_timeout_s)
+                verifier_cfg.get("timeout_sec", verifier_timeout_s)
+            )
+            agent_output_path = str(
+                verifier_cfg.get("agent_output_path", agent_output_path)
             )
 
         return ScenarioSpec(
@@ -278,6 +283,7 @@ def _load_scenario_spec(scenario: str) -> ScenarioSpec:
             environment_dir=scenario_root / "environment",
             tests_dir=tests_dir,
             test_sh_path=test_sh,
+            agent_output_path=agent_output_path,
             verifier_timeout_s=verifier_timeout_s,
         )
     else:

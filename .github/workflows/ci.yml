@@ -104,11 +104,12 @@ jobs:
 
   scenario-images:
     # Per-scenario environment images for shell_verifier scenarios.
-    # Each scenarios/<name>/environment/Dockerfile is built and published
-    # as ghcr.io/trajectoryrl/scenario-<name> with the same tag scheme as
-    # the sandbox-agent image, so a validator pinned to
-    # sandbox-agent:<tag> always gets a matching scenario-<name>:<tag>.
-    needs: [test]
+    # Each scenarios/<name>/environment/Dockerfile FROMs the
+    # sandbox-agent image so the agent runs in the scenario container
+    # directly (chromium / selenium / etc. installed by the scenario
+    # are available at solve time). That means scenario-images must
+    # be built *after* sandbox-agent-image so the FROM line resolves.
+    needs: [test, sandbox-agent-image]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

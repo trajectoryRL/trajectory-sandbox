@@ -1,55 +1,28 @@
-.PHONY: install build test test-unit test-docker clean
+.PHONY: install build build-scenario test clean
 
-SANDBOX_IMAGE    := ghcr.io/trajectoryrl/trajrl-bench:latest
-HERMES_IMAGE     := ghcr.io/trajectoryrl/hermes-agent:latest
-CLAUDECODE_IMAGE := ghcr.io/trajectoryrl/claude-code-agent:latest
-OPENCLAW_IMAGE   := ghcr.io/trajectoryrl/openclaw-agent:latest
-
-# ---------------------------------------------------------------------------
-# Setup
-# ---------------------------------------------------------------------------
+SANDBOX_AGENT_IMAGE := ghcr.io/trajectoryrl/sandbox-agent:latest
 
 install:
 	uv sync
 
+# Build the sandbox-agent image. The per-scenario environment images
+# (ghcr.io/trajectoryrl/scenario-<name>) are built on demand via
+# `make build-scenario SCENARIO=<name>`.
 build:
-	docker build -f docker/Dockerfile.sandbox    -t $(SANDBOX_IMAGE) .
-	docker build -f docker/Dockerfile.hermes     -t $(HERMES_IMAGE) .
-	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
-	docker build -f docker/Dockerfile.openclaw   -t $(OPENCLAW_IMAGE) .
+	docker build -f docker/Dockerfile.sandbox-agent -t $(SANDBOX_AGENT_IMAGE) .
 
-build-sandbox:
-	docker build -f docker/Dockerfile.sandbox    -t $(SANDBOX_IMAGE) .
+build-scenario:
+	@if [ -z "$(SCENARIO)" ]; then \
+		echo "Usage: make build-scenario SCENARIO=<name>"; exit 1; \
+	fi
+	docker build \
+		-f scenarios/$(SCENARIO)/environment/Dockerfile \
+		-t ghcr.io/trajectoryrl/scenario-$(SCENARIO):latest \
+		scenarios/$(SCENARIO)/environment/
 
-build-hermes:
-	docker build -f docker/Dockerfile.hermes     -t $(HERMES_IMAGE) .
-
-build-claudecode:
-	docker build -f docker/Dockerfile.claudecode -t $(CLAUDECODE_IMAGE) .
-
-build-openclaw:
-	docker build -f docker/Dockerfile.openclaw   -t $(OPENCLAW_IMAGE) .
-
-# ---------------------------------------------------------------------------
-# Tests (ordered by what they need)
-# ---------------------------------------------------------------------------
-
-# No Docker, no API key — scoring math, fixtures, CLI scenario files.
-test-unit:
-	uv run pytest tests/ -v \
-		--ignore=tests/test_e2e_docker.py \
-		--ignore=tests/test_integration.py
-
-# Needs Docker + sandbox image built
-test-docker:
-	uv run python tests/test_e2e_docker.py
-
-# All offline tests
-test: test-unit
-
-# ---------------------------------------------------------------------------
-# Cleanup
-# ---------------------------------------------------------------------------
+test:
+	uv run pytest tests/ -v
 
 clean:
-	rm -rf __pycache__ .pytest_cache *.egg-info trajrl_bench/__pycache__ tests/__pycache__
+	rm -rf __pycache__ .pytest_cache *.egg-info \
+	       trajrl_bench/__pycache__ tests/__pycache__

@@ -33,36 +33,14 @@ jobs:
         run: uv sync
 
       - name: Run unit tests
-        run: uv run pytest tests/test_types.py tests/test_fixture_factory.py tests/test_state_store.py -v
+        run: uv run pytest tests/ -v
 
-      - name: Run conformance tests
-        run: uv run pytest tests/test_conformance.py -v
-
-  docker-build:
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build sandbox image
-        run: |
-          docker build -f docker/Dockerfile.sandbox -t ghcr.io/trajectoryrl/trajrl-bench:test .
-
-      - name: Build hermes image
-        run: |
-          docker build -f docker/Dockerfile.hermes -t ghcr.io/trajectoryrl/hermes-agent:test .
-
-      - name: Verify sandbox CLI
-        run: |
-          docker run --rm --entrypoint python ghcr.io/trajectoryrl/trajrl-bench:test \
-            -m trajrl_bench.cli scenarios
-
-      - name: Verify hermes SSH
-        run: |
-          docker run --rm --entrypoint ssh ghcr.io/trajectoryrl/hermes-agent:test -V
-
-  docker-release:
-    needs: [test, docker-build]
+  sandbox-agent-image:
+    # Single sandbox+agent image. CMD = `tail -f /dev/null`; the
+    # validator (or any consumer) drives the agent via ``docker exec
+    # -u agent`` per episode. No legacy 2-container variants — those
+    # were retired together with the legacy mock-services scenarios.
+    needs: [test]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -74,63 +52,36 @@ jobs:
       - name: Compute release tags
         id: tags
         run: |
-          SANDBOX="ghcr.io/trajectoryrl/trajrl-bench"
-          HERMES="ghcr.io/trajectoryrl/hermes-agent"
+          REPO="ghcr.io/trajectoryrl/sandbox-agent"
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            # Manual staging build: only publish a unique staging tag, never touch :latest.
             SUFFIX="${{ github.event.inputs.staging_tag }}"
             STAGING_TAG="${SUFFIX}-${SHORT_SHA}"
-            echo "channel=staging" >> $GITHUB_OUTPUT
             {
-              echo "sandbox_tags<<EOF"
-              echo "${SANDBOX}:${STAGING_TAG}"
-              echo "${SANDBOX}:staging"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
-            {
-              echo "hermes_tags<<EOF"
-              echo "${HERMES}:${STAGING_TAG}"
-              echo "${HERMES}:staging"
+              echo "tags<<EOF"
+              echo "${REPO}:${STAGING_TAG}"
+              echo "${REPO}:staging"
               echo "EOF"
             } >> $GITHUB_OUTPUT
           else
             TAG=${GITHUB_REF#refs/tags/}
-            # Pre-release semver tags contain a hyphen (e.g. v1.0.0-rc.1, v1.0.0-beta.2).
             if [[ "${TAG}" == *-* ]]; then
-              echo "channel=staging" >> $GITHUB_OUTPUT
               {
-                echo "sandbox_tags<<EOF"
-                echo "${SANDBOX}:${TAG}"
-                echo "${SANDBOX}:staging"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              {
-                echo "hermes_tags<<EOF"
-                echo "${HERMES}:${TAG}"
-                echo "${HERMES}:staging"
+                echo "tags<<EOF"
+                echo "${REPO}:${TAG}"
+                echo "${REPO}:staging"
                 echo "EOF"
               } >> $GITHUB_OUTPUT
             else
-              # Stable release: v1.0.0 → major=v1, minor=v1.0, patch=v1.0.0, plus :latest.
               MAJOR=$(echo "${TAG}" | cut -d. -f1)
               MINOR=$(echo "${TAG}" | cut -d. -f1-2)
-              echo "channel=stable" >> $GITHUB_OUTPUT
               {
-                echo "sandbox_tags<<EOF"
-                echo "${SANDBOX}:latest"
-                echo "${SANDBOX}:${TAG}"
-                echo "${SANDBOX}:${MINOR}"
-                echo "${SANDBOX}:${MAJOR}"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              {
-                echo "hermes_tags<<EOF"
-                echo "${HERMES}:latest"
-                echo "${HERMES}:${TAG}"
-                echo "${HERMES}:${MINOR}"
-                echo "${HERMES}:${MAJOR}"
+                echo "tags<<EOF"
+                echo "${REPO}:latest"
+                echo "${REPO}:${TAG}"
+                echo "${REPO}:${MINOR}"
+                echo "${REPO}:${MAJOR}"
                 echo "EOF"
               } >> $GITHUB_OUTPUT
             fi
@@ -143,18 +94,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push sandbox image (${{ steps.tags.outputs.channel }})
+      - name: Build and push sandbox-agent image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile.sandbox
+          file: docker/Dockerfile.sandbox-agent
           push: true
-          tags: ${{ steps.tags.outputs.sandbox_tags }}
+          tags: ${{ steps.tags.outputs.tags }}
 
-      - name: Build and push hermes image (${{ steps.tags.outputs.channel }})
+  scenario-images:
+    # Per-scenario environment images for shell_verifier scenarios.
+    # Each scenarios/<name>/environment/Dockerfile is built and published
+    # as ghcr.io/trajectoryrl/scenario-<name> with the same tag scheme as
+    # the sandbox-agent image, so a validator pinned to
+    # sandbox-agent:<tag> always gets a matching scenario-<name>:<tag>.
+    needs: [test]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          - break-filter-js-from-html
+          - cancel-async-tasks
+          - log-summary-date-ranges
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute scenario tags
+        id: tags
+        run: |
+          REPO="ghcr.io/trajectoryrl/scenario-${{ matrix.scenario }}"
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            SUFFIX="${{ github.event.inputs.staging_tag }}"
+            STAGING_TAG="${SUFFIX}-${SHORT_SHA}"
+            {
+              echo "tags<<EOF"
+              echo "${REPO}:${STAGING_TAG}"
+              echo "${REPO}:staging"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+            if [[ "${TAG}" == *-* ]]; then
+              {
+                echo "tags<<EOF"
+                echo "${REPO}:${TAG}"
+                echo "${REPO}:staging"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+            else
+              MAJOR=$(echo "${TAG}" | cut -d. -f1)
+              MINOR=$(echo "${TAG}" | cut -d. -f1-2)
+              {
+                echo "tags<<EOF"
+                echo "${REPO}:latest"
+                echo "${REPO}:${TAG}"
+                echo "${REPO}:${MINOR}"
+                echo "${REPO}:${MAJOR}"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push scenario-${{ matrix.scenario }}
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: docker/Dockerfile.hermes
+          context: scenarios/${{ matrix.scenario }}/environment
+          file: scenarios/${{ matrix.scenario }}/environment/Dockerfile
           push: true
-          tags: ${{ steps.tags.outputs.hermes_tags }}
+          tags: ${{ steps.tags.outputs.tags }}

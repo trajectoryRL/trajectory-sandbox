@@ -23,12 +23,26 @@ When adapting a task, preserve the upstream task author attribution from the
 original task.yaml (`author_name` / `author_email`) in the trajrl-bench
 scenario's DESIGN.md or NOTICE block, and summarize modifications below.
 
-  (no scenarios adapted yet — append entries here as they land)
-
   Format:
     scenarios/<trajrl-name>/
       Adapted from terminal-bench task <upstream-task-id>
         (https://github.com/harbor-framework/terminal-bench/tree/<commit>/<path>)
       Original author: <author_name> <author_email>
       Modifications: <one-line summary; see scenario DESIGN.md for detail>
+================================================================================
+terminal-bench-2
+--------------------------------------------------------------------------------
+
+Source:    https://github.com/harbor-framework/terminal-bench-2
+License:   Apache License, Version 2.0 (inherited from terminal-bench)
+
+The following trajrl-bench scenarios are adapted from terminal-bench-2 tasks.
+
+  scenarios/nginx-request-logging/
+    Adapted from terminal-bench-2 task `nginx-request-logging`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/nginx-request-logging)
+    Original author: Junhong Shen <junhongs@andrew.cmu.edu>
+    Modifications: agent deliverable is /app/setup.sh executed by the verifier,
+      not in-place configuration; tests/test_outputs.py reused verbatim. See
+      scenarios/nginx-request-logging/DESIGN.md.
 ================================================================================

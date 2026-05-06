@@ -121,6 +121,7 @@ jobs:
           - break-filter-js-from-html
           - cancel-async-tasks
           - log-summary-date-ranges
+          - nginx-request-logging
 
     steps:
       - uses: actions/checkout@v4

@@ -120,8 +120,11 @@ jobs:
         scenario:
           - break-filter-js-from-html
           - cancel-async-tasks
+          - db-wal-recovery
+          - fix-git
           - log-summary-date-ranges
           - nginx-request-logging
+          - vulnerable-secret
 
     steps:
       - uses: actions/checkout@v4

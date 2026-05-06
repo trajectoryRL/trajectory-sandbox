@@ -45,4 +45,29 @@ The following trajrl-bench scenarios are adapted from terminal-bench-2 tasks.
     Modifications: agent deliverable is /app/setup.sh executed by the verifier,
       not in-place configuration; tests/test_outputs.py reused verbatim. See
       scenarios/nginx-request-logging/DESIGN.md.
+
+  scenarios/db-wal-recovery/
+    Adapted from terminal-bench-2 task `db-wal-recovery`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/db-wal-recovery)
+    Original author: Xiangning Lin <xiangnlin@alumni.cmu.edu>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. ubuntu:24.04); fixture
+      files (main.db, main.db-wal.encrypted) and tests/test_outputs.py reused
+      verbatim. See scenarios/db-wal-recovery/DESIGN.md.
+
+  scenarios/fix-git/
+    Adapted from terminal-bench-2 task `fix-git`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/fix-git)
+    Original author: TheMikeMerrill <mchlmerrill@gmail.com>
+    Modifications: agent deliverable is /app/recovery.sh executed by the verifier
+      from /app/personal-site, not in-place git operations; setup.sh + patch_files
+      and tests/test_outputs.py reused verbatim. See scenarios/fix-git/DESIGN.md.
+
+  scenarios/vulnerable-secret/
+    Adapted from terminal-bench-2 task `vulnerable-secret`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/vulnerable-secret)
+    Original author: Justin Bauer <justin.bauer@snorkel.ai>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. python:3.13-slim-bookworm)
+      with -Wno-implicit-function-declaration on the gcc line for newer
+      compilers; vulnerable.c and tests/test_outputs.py reused verbatim. See
+      scenarios/vulnerable-secret/DESIGN.md.
 ================================================================================

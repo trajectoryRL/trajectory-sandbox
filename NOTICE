@@ -70,4 +70,12 @@ The following trajrl-bench scenarios are adapted from terminal-bench-2 tasks.
       with -Wno-implicit-function-declaration on the gcc line for newer
       compilers; vulnerable.c and tests/test_outputs.py reused verbatim. See
       scenarios/vulnerable-secret/DESIGN.md.
+
+  scenarios/path-tracing/
+    Adapted from terminal-bench-2 task `path-tracing`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/path-tracing)
+    Original author: Nicholas Carlini <nicholas@carlini.com>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. ubuntu:24.04) with
+      gcc + libc6-dev for the -static link path; orig.c, tests/test_outputs.py,
+      and solution/solve.sh reused verbatim. See scenarios/path-tracing/DESIGN.md.
 ================================================================================

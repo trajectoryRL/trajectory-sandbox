@@ -124,6 +124,7 @@ jobs:
           - fix-git
           - log-summary-date-ranges
           - nginx-request-logging
+          - path-tracing
           - vulnerable-secret
 
     steps:

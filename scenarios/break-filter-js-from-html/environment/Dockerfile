@@ -30,4 +30,4 @@ WORKDIR /app
 # before the verifier judges.
 COPY filter.py /app/
 COPY tests/test_outputs.py /app/
-RUN chown -R agent:agent /app
+RUN chown -R hermes:hermes /app

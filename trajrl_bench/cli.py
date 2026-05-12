@@ -19,10 +19,58 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import subprocess
 import sys
 
 
 SCENARIO_IMAGE_PREFIX = "ghcr.io/trajectoryrl/scenario-"
+
+# The agent harness baked into this image. All three are set in
+# Dockerfile.sandbox-agent; only ``TRAJRL_HARNESS_CMD`` has a default so
+# the probe still runs on older images that predate the other two.
+#   TRAJRL_HARNESS_CMD  — binary to invoke for ``<cmd> --version``
+#   TRAJRL_HARNESS_NAME — display name (else parsed from --version output)
+# Swapping to a different harness later is a Dockerfile-only change; the
+# validator, API and dashboard just carry two strings and don't care
+# which harness produced them.
+HARNESS_CMD = os.environ.get("TRAJRL_HARNESS_CMD", "hermes")
+HARNESS_NAME = os.environ.get("TRAJRL_HARNESS_NAME", "")
+
+
+def _harness_identity() -> dict:
+    """Best-effort name + version of the agent harness in this image.
+
+    Runs ``<TRAJRL_HARNESS_CMD> --version`` and parses the first line.
+    Hermes prints e.g. ``Hermes Agent v0.13.0 (2026.5.7)`` — we take
+    ``TRAJRL_HARNESS_NAME`` if set, else the leading word, as the name,
+    and the first semver-ish token as the version. Any failure (binary
+    missing, weird output) yields ``{}`` (or just the env-provided name)
+    so the caller omits what it doesn't know rather than breaking the
+    ``scenarios`` probe.
+    """
+    ident: dict = {}
+    if HARNESS_NAME:
+        ident["harness_name"] = HARNESS_NAME
+    try:
+        out = subprocess.run(
+            [HARNESS_CMD, "--version"],
+            capture_output=True, text=True, timeout=15,
+        )
+        text = (out.stdout or out.stderr or "").strip()
+        if text:
+            first = text.splitlines()[0].strip()
+            if "harness_name" not in ident:
+                name_m = re.match(r"\s*([A-Za-z][\w-]*)", first)
+                if name_m:
+                    ident["harness_name"] = name_m.group(1)
+            ver_m = re.search(r"v?(\d+\.\d+(?:\.\d+)?(?:[.\-+][\w.]+)?)", first)
+            if ver_m:
+                ident["harness_version"] = ver_m.group(1)
+    except Exception:
+        pass
+    return ident
 
 
 def _scenario_root(name: str):
@@ -70,7 +118,11 @@ def cmd_scenarios(args):
     from trajrl_bench import __version__
 
     json.dump(
-        {"version": __version__, "scenarios": _list_scenario_dirs()},
+        {
+            "version": __version__,
+            "scenarios": _list_scenario_dirs(),
+            **_harness_identity(),
+        },
         sys.stdout,
         indent=2,
     )

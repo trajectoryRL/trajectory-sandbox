@@ -121,6 +121,14 @@ RUN mkdir -p /opt/data && chown hermes:hermes /opt/data
 
 ENV HERMES_BUNDLED_SKILLS=/nonexistent
 
+# Identifies the agent harness baked into this image. Read by
+# ``trajrl_bench.cli scenarios`` to probe ``<cmd> --version`` and report
+# harness_name / harness_version up to the validator (and on to the
+# dashboard live page). If a future image swaps Hermes for a different
+# harness, change these two lines — nothing downstream is Hermes-specific.
+ENV TRAJRL_HARNESS_CMD=hermes
+ENV TRAJRL_HARNESS_NAME=Hermes
+
 # Hermes binary lives in upstream's project venv. Upstream's entrypoint
 # sources the venv to put it on PATH; we replace their entrypoint, so we
 # append the venv to PATH here. Append (not prepend!) so ``python`` on

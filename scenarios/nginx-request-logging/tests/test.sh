@@ -30,12 +30,12 @@ fi
 # request-driven tests fire.
 sleep 1
 
-uvx \
-  -p 3.13 \
-  -w pytest==8.4.1 \
-  -w requests==2.32.4 \
-  -w pytest-json-ctrf==0.3.5 \
-  pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA
+# pytest + pytest-json-ctrf are baked into sandbox-agent. Install only
+# the scenario-specific extras here.
+uv pip install --system --no-cache --break-system-packages \
+    requests==2.32.4
+
+pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA
 
 
 if [ $? -eq 0 ]; then

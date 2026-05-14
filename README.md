@@ -48,7 +48,7 @@ scenarios/<name>/
     solve.sh             # reference solution (not used at eval time)
 ```
 
-`uv` + `uvx` are pre-installed in `sandbox-agent` at `/usr/local/bin/` — scenario `test.sh` files **do not need to curl-install uv**. Just call `uvx -p 3.13 -w <pkg>==<ver> pytest ...` (or `pytest` directly once that lands in the base image) without any bootstrap block.
+**Verifier-side pre-installed deps.** `sandbox-agent` ships `uv` + `uvx` at `/usr/local/bin/`, plus `pytest==8.4.1` and `pytest-json-ctrf==0.3.5` system-wide. Scenario `test.sh` files **do not need to bootstrap any of these** — just call `pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA` directly. For scenario-specific extras (selenium, requests, numpy, pillow, …), install at verifier time via `uv pip install --system --no-cache --break-system-packages <pkg>==<ver>` before invoking `pytest`. Don't add scenario extras to the base image — keep its footprint focused on the common verifier path.
 
 Provenance + license tracked per scenario (when present) in `scenarios/<name>/DESIGN.md`, aggregated in [`NOTICE`](NOTICE) / [`THIRD_PARTY_LICENSES`](THIRD_PARTY_LICENSES).
 

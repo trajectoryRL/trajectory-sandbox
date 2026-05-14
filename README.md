@@ -48,6 +48,8 @@ scenarios/<name>/
     solve.sh             # reference solution (not used at eval time)
 ```
 
+`uv` + `uvx` are pre-installed in `sandbox-agent` at `/usr/local/bin/` — scenario `test.sh` files **do not need to curl-install uv**. Just call `uvx -p 3.13 -w <pkg>==<ver> pytest ...` (or `pytest` directly once that lands in the base image) without any bootstrap block.
+
 Provenance + license tracked per scenario (when present) in `scenarios/<name>/DESIGN.md`, aggregated in [`NOTICE`](NOTICE) / [`THIRD_PARTY_LICENSES`](THIRD_PARTY_LICENSES).
 
 Currently published:

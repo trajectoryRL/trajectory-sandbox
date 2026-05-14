@@ -1,12 +1,8 @@
 #!/bin/bash
 
-# Install uv (and curl, if the base image somehow lacks it).
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y curl
-
-curl -LsSf https://astral.sh/uv/0.9.5/install.sh | sh
-
-source $HOME/.local/bin/env
+# uv + uvx are pre-installed in sandbox-agent (Dockerfile.sandbox-agent
+# copies them from ghcr.io/astral-sh/uv:latest into /usr/local/bin/).
+# No bootstrap needed here.
 
 # Check if we're in a valid working directory
 if [ "$PWD" = "/" ]; then

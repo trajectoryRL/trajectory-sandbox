@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "trajrl-bench"
-version = "4.0.11"
+version = "4.0.12"
 description = "Shell-verifier scenarios + unified sandbox+agent image for TrajectoryRL evaluations"
 requires-python = ">=3.10"
 license = {text = "MIT"}

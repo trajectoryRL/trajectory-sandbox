@@ -110,4 +110,17 @@ The following trajrl-bench scenarios are adapted from terminal-bench-2 tasks.
       and environment/default.conf reused verbatim; tests/test_endpoints.py is a
       trajrl-bench-original partial-credit discrimination test (not from
       upstream). See scenarios/git-multibranch/DESIGN.md.
+
+  scenarios/schemelike-metacircular-eval/
+    Adapted from terminal-bench-2 task `schemelike-metacircular-eval`
+      (https://github.com/harbor-framework/terminal-bench-2/tree/main/schemelike-metacircular-eval)
+    Original author: Nicholas Carlini <nicholas@carlini.com>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. python:3.13-slim-bookworm)
+      with interp.py + the visible test/ corpus baked into /app; agent
+      deliverable is /app/eval.scm; interp.py and the test/shadow_test .scm
+      programs reused verbatim; solution/solve.sh retargeted to /app/eval.scm;
+      tests/test_outputs.py rewritten from the upstream single monolithic test
+      into 63 per-program functions (visible /app/test + hidden flat
+      shadow__*.scm) for partial credit. See
+      scenarios/schemelike-metacircular-eval/DESIGN.md.
 ================================================================================

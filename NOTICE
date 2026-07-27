@@ -130,6 +130,24 @@ scenario's DESIGN.md or NOTICE block, and summarize modifications below.
       for the 1-CPU verifier quota; solution/solve.sh canary removed. See
       scenarios/deterministic-tarball/DESIGN.md.
 
+  scenarios/large-scale-text-editing/
+    Adapted from terminal-bench task `large-scale-text-editing`
+      (https://github.com/harbor-framework/terminal-bench/tree/1a6ffa9674b571da0ed040c470cb40c4d85f9b9b/original-tasks/large-scale-text-editing)
+    Original author: Robert Zhang <robertz@cs.utexas.edu>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. t-bench ubuntu base) +
+      apt vim; gen_large_csv.py is COPY'd from environment/ (the build context)
+      to bake /app/input.csv + /app/expected.csv (1M rows each) at build, then
+      removed from /app, with a byte-identical second copy under tests/ so
+      tests/test.sh regenerates a FRESH, sanitary input.csv at grade time and
+      test_outputs.py generates expected.csv only AFTER the agent's vim run —
+      the anti-cheat that defeats a pre-transformed input or planted output CSV;
+      deliverable is the single file /app/apply_macros.vim; tests/test.sh is the
+      audio-synth-stft-peaks uvx test.sh plus the upstream run-tests.sh CSV-regen
+      block; tests/test_outputs.py reused verbatim except canary removed
+      (allowed-command whitelist and keystroke bound kept intact);
+      solution/solve.sh writes /app/apply_macros.vim (canary removed, cd /app
+      added). See scenarios/large-scale-text-editing/DESIGN.md.
+
   scenarios/llm-inference-batching-scheduler/
     Adapted from terminal-bench task `llm-inference-batching-scheduler`
       (https://github.com/harbor-framework/terminal-bench/tree/1a6ffa9674b571da0ed040c470cb40c4d85f9b9b/original-tasks/llm-inference-batching-scheduler)

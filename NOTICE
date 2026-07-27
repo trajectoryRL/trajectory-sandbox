@@ -130,6 +130,26 @@ scenario's DESIGN.md or NOTICE block, and summarize modifications below.
       for the 1-CPU verifier quota; solution/solve.sh canary removed. See
       scenarios/deterministic-tarball/DESIGN.md.
 
+  scenarios/fix-code-vulnerability/
+    Adapted from terminal-bench task `fix-code-vulnerability`
+      (https://github.com/harbor-framework/terminal-bench/tree/1a6ffa9674b571da0ed040c470cb40c4d85f9b9b/original-tasks/fix-code-vulnerability)
+    Original author: Yue Liu <yliu@u.nus.edu>
+    Modifications: Dockerfile FROMs sandbox-agent (vs. t-bench python:3.11-slim);
+      bottle.py is git-cloned at the pinned commit
+      0207a34f0c5716cd292dd4480253ad35d3da49f3 at build time and the CWE-93
+      oracle removed with upstream's two sequential seds (1562,1563d /
+      1567,1568d) on the same pin; pytest/pytest-json-ctrf baked into system
+      python3 so grading is offline; ONLY tests/test_outputs.py is scored (6
+      cells) -- bottle's own repo test suite is deliberately excluded (upstream
+      run-tests.sh ran it first, which would swamp quality=passed/tests);
+      deliverable reshaped to a single tarball /app/deliverable.tar.gz
+      (bottle.py + report.jsonl at the archive root) since agent_output_path
+      cannot name a directory, extracted by tests/test.sh before pytest;
+      solution/solve.sh is upstream solution.sh (canary removed) plus the tar
+      packaging line; canary removed from tests/test_outputs.py. Redistributes
+      the Bottle library itself (MIT, see THIRD_PARTY_LICENSES/bottle/). See
+      scenarios/fix-code-vulnerability/DESIGN.md.
+
   scenarios/large-scale-text-editing/
     Adapted from terminal-bench task `large-scale-text-editing`
       (https://github.com/harbor-framework/terminal-bench/tree/1a6ffa9674b571da0ed040c470cb40c4d85f9b9b/original-tasks/large-scale-text-editing)
@@ -284,6 +304,21 @@ task clones as its fixture codebase, and which the trajrl-bench port of that
 task (scenarios/3d-model-format-legacy/) also clones at build time and
 redistributes (patched) as part of the scenario's deliverable tarball and
 baked image. See scenarios/3d-model-format-legacy/DESIGN.md for detail.
+================================================================================
+bottle
+--------------------------------------------------------------------------------
+
+Source:    https://github.com/bottlepy/bottle
+License:   MIT License
+Pin:       commit 0207a34f0c5716cd292dd4480253ad35d3da49f3
+Full text: THIRD_PARTY_LICENSES/bottle/LICENSE
+
+Bottle is a separate third-party dependency from terminal-bench: it is the
+single-file WSGI web framework that terminal-bench's own `fix-code-vulnerability`
+task clones as its fixture codebase, and which the trajrl-bench port of that task
+(scenarios/fix-code-vulnerability/) also clones at build time and redistributes
+(with the CWE-93 oracle removed) baked into the scenario image and inside the
+agent's deliverable tarball. See scenarios/fix-code-vulnerability/DESIGN.md.
 ================================================================================
 terminal-bench-2
 --------------------------------------------------------------------------------

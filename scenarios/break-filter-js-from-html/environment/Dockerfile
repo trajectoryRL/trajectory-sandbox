@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 # externally-managed; we own this image so installing alongside the
 # system interpreter is fine.
 RUN pip install --no-cache-dir --break-system-packages \
-    selenium==4.35.0 beautifulsoup4==4.13.4
+    selenium==4.35.0 beautifulsoup4==4.13.4 pytest==8.4.1
 
 WORKDIR /app
 

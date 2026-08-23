@@ -43,7 +43,8 @@ def _harness_identity() -> dict:
     """Best-effort name + version of the agent harness in this image.
 
     Runs ``<TRAJRL_HARNESS_CMD> --version`` and parses the first line.
-    Hermes prints e.g. ``Hermes Agent v0.13.0 (2026.5.7)`` — we take
+    Hermes prints e.g. ``Hermes Agent v0.20.5 (2026.8.19) · upstream
+    fcbd1076`` — we take
     ``TRAJRL_HARNESS_NAME`` if set, else the leading word, as the name,
     and the first semver-ish token as the version. Any failure (binary
     missing, weird output) yields ``{}`` (or just the env-provided name)
